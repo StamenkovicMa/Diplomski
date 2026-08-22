@@ -1,0 +1,31 @@
+MONEYMATE — SRPSKI FISKALNI PARSER 1.3.2
+
+Parser je prilagođen stvarnoj stranici Poreske uprave koju prikazuje suf.purs.gov.rs.
+
+Prepoznaje ćirilična i latinična polja:
+- ПИБ / PIB
+- Име продајног места
+- Адреса
+- Град
+- Општина
+- Укупан износ
+- ПФР време
+- Затражио - Потписао - Бројач
+- Врста
+
+Parsira tabelu Спецификација рачуна:
+- Назив
+- Количина
+- Јед. цена са ПДВ
+- Укупна цена
+- Основица
+- ПДВ
+- Стопа
+
+OBAVEZNO PONOVO DEPLOYUJ FUNKCIJU:
+
+npx supabase functions deploy parse-fiscal-receipt --no-verify-jwt
+
+Zatim pokreni:
+
+npx expo start --lan --clear

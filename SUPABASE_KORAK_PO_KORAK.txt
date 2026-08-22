@@ -1,0 +1,12 @@
+1. Napravi Supabase projekat.
+2. SQL Editor > New query.
+3. Nalepi sadržaj fajla supabase/schema.sql i klikni Run.
+4. Project Settings > API > kopiraj Project URL i anon/publishable key.
+5. U folderu projekta napravi fajl .env.
+6. Unesi:
+   EXPO_PUBLIC_SUPABASE_URL=...
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=...
+7. Authentication > Providers > Email mora biti uključen.
+8. Pokreni: npm install
+9. Pokreni: npx expo install --fix
+10. Pokreni: npx expo start --lan --clear

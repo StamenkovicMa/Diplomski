@@ -1,0 +1,11 @@
+ISPRAVKA 1.2.3
+
+- expo-camera je instaliran.
+- Uklonjen je Modal unutar Modala.
+- Klik na Skeniraj QR sada potpuno zamenjuje formu ekranom kamere.
+- Klik Zatvori vraća formu bez gubitka podataka.
+- Expo exp:// QR kodovi se ignorišu.
+
+U terminalu treba da vidiš:
+[MoneyMate] Otvaram QR kameru
+[MoneyMate] QR kamera ekran je renderovan

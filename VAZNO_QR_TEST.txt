@@ -1,0 +1,13 @@
+ZAŠTO SE KAMERA ODMAH ZATVARALA?
+
+Kamera je sa monitora čitala Expo razvojni QR:
+exp://192.168.100.3:8081
+
+Nova verzija ignoriše svaki exp:// QR kod i ostaje otvorena.
+
+TEST:
+1. Pokreni Expo.
+2. Na telefonu otvori Skeniraj fiskalni QR.
+3. Okreni telefon tako da monitor i Expo QR nisu u kadru.
+4. Usmeri kameru samo ka QR kodu na fiskalnom računu.
+5. Nevažeći QR više ne zatvara kameru.

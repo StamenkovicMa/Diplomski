@@ -1,0 +1,7 @@
+1. Prijavi se.
+2. Otvori Nova transakcija.
+3. Testiraj Fotografisi i Galerija.
+4. Prihvati dozvole.
+5. Sacuvaj transakciju.
+6. Proveri oznaku Prilozen racun.
+7. Otvori izmenu i proveri da slika ostaje.

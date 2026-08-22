@@ -1,0 +1,21 @@
+MONEYMATE 1.7
+
+CILJEVI:
+- RSD, EUR i USD;
+- kurs za EUR/USD;
+- zaključavanje prema RSD protivvrednosti;
+- dugme „Plati cilj“ kada je cilj završen;
+- plaćanje kreira trošak u istoj valuti.
+
+PONAVLJAJUĆE TRANSAKCIJE:
+- prihodi tekućeg meseca;
+- troškovi tekućeg meseca;
+- neto rezultat;
+- broj automatski evidentiranih stavki.
+
+Pokretanje:
+npm install
+npx expo install --fix
+npx expo start --lan --clear
+
+Supabase Edge Function ne mora ponovo da se deployuje.

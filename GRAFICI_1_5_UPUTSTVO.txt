@@ -1,0 +1,15 @@
+MONEYMATE 1.5 — LEPI GRAFICI
+
+Dodato u Izveštaje:
+- 4 pregledne finansijske kartice
+- stubičasti grafikon prihoda i troškova za 6 meseci
+- grafikon pozitivnog/negativnog mesečnog rezultata
+- raspodela troškova po kategorijama sa procentima
+- finansijski uvidi: prosečan trošak, najbolji mesec i najveća kategorija
+
+Nisu dodate nove biblioteke, pa nije potreban novi native build samo zbog grafikona.
+
+Pokretanje:
+npm install
+npx expo install --fix
+npx expo start --lan --clear

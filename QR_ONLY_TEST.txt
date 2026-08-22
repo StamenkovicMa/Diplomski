@@ -1,0 +1,18 @@
+MONEYMATE QR ONLY TEST
+
+Ova verzija nema fotografisanje niti izbor slike iz galerije.
+Kamera se koristi samo za skeniranje QR koda fiskalnog računa.
+
+1. Kopiraj .env.
+2. Pokreni:
+   npm install
+   npx expo install --fix
+   npx expo-doctor
+   npx expo start --lan --clear
+
+3. Otvori Skeniraj fiskalni QR.
+4. Postavi ceo QR unutar okvira.
+5. Drži telefon mirno 2-3 sekunde.
+
+Aplikacija sada prihvata puni URL, URL sa dodatnim tekstom,
+URL-kodirani sadržaj i suf.purs.gov.rs link bez https://.

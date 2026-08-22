@@ -1,0 +1,27 @@
+MONEYMATE 1.3.4 — NAPREDNI QR SKENER I RUČNI LINK
+
+DODATO:
+- veći okvir za QR;
+- zum 1x, 1.5x i 2x;
+- uključivanje lampe;
+- skener ostaje otvoren kada pročita pogrešan QR;
+- ručno lepljenje celog fiskalnog linka.
+
+RUČNI POSTUPAK:
+1. Otvori običnu iPhone kameru.
+2. Skeniraj QR fiskalnog računa.
+3. Otvori suf.purs.gov.rs link.
+4. Kopiraj ceo link iz browsera.
+5. U MoneyMate formi nalepi link u polje:
+   QR ne može da se skenira?
+6. Klikni Nalepi/učitaj fiskalni link.
+
+EDGE FUNCTION:
+Ako si već deployovao parser 1.3.3, nije obavezan novi deploy jer je server parser isti.
+Ako želiš da budeš siguran:
+npx supabase functions deploy parse-fiscal-receipt --no-verify-jwt
+
+POKRETANJE:
+npm install
+npx expo install --fix
+npx expo start --lan --clear

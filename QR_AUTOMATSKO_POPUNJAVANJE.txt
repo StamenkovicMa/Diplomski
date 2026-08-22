@@ -1,0 +1,33 @@
+QR AUTOMATSKO POPUNJAVANJE — OBAVEZAN KORAK
+
+Zašto je potreban Supabase Edge Function:
+Telefon često ne može direktno da pročita odgovor Poreske uprave zbog CORS zaštite.
+Edge Function učitava fiskalni link na serveru i vraća aplikaciji obrađene podatke.
+
+PRVI PUT:
+
+1. Otvori terminal u ovom projektu.
+2. Pokreni:
+
+   npx supabase login
+   npx supabase link --project-ref fhhlihrkxnayufpmrbwf
+   npx supabase functions deploy parse-fiscal-receipt --no-verify-jwt
+
+Možeš i dvokliknuti DEPLOY_QR_FUNCTION.bat.
+
+POSLE TOGA:
+
+1. npx expo start --lan --clear
+2. Skeniraj fiskalni QR.
+3. Aplikacija pokušava da prepozna:
+   - naziv prodavca
+   - PIB
+   - adresu
+   - ukupan iznos
+   - datum i vreme
+   - broj računa
+   - način plaćanja
+   - ukupan porez
+   - stavke računa, kada su dostupne
+
+Podaci se uvek prikazuju korisniku radi provere pre čuvanja.

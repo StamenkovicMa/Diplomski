@@ -1,0 +1,25 @@
+MONEYMATE PARSER 1.3.3
+
+Ova verzija koristi dva izvora:
+1. tabelu Specifikacija računa, ako je dostupna;
+2. Žurnal kao rezervni izvor, ako je tabela zatvorena ili prazna.
+
+Iz Žurnala pokušava da pročita:
+- preduzeće i prodajno mesto
+- PIB
+- ukupni iznos
+- ukupan porez
+- datum i vreme
+- broj računa
+- način plaćanja
+- adresu i opštinu
+- artikle, količinu, jediničnu cenu i ukupan iznos
+
+Za račune usluga, kao što je Dom zdravlja, lista artikala može legitimno biti prazna,
+ali ukupni iznos, prodavac i datum treba da budu popunjeni.
+
+OBAVEZNO DEPLOY:
+npx supabase functions deploy parse-fiscal-receipt --no-verify-jwt
+
+ZATIM:
+npx expo start --lan --clear

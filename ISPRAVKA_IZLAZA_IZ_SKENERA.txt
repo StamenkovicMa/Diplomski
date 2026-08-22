@@ -1,0 +1,15 @@
+MONEYMATE 1.4.1 — IZLAZ IZ QR SKENERA
+
+Dodato:
+- veliko dugme „Odustani i vrati se“ pri dnu kamere;
+- dugme je iznad CameraView prikaza i overlay ga ne blokira;
+- gasi lampu i resetuje zum;
+- vraća formu transakcije bez gubitka unetih podataka;
+- dugme „Zatvori“ u zaglavlju koristi isti pouzdan handler.
+
+Nije potrebno ponovo deployovati Supabase Edge Function jer parser nije menjan.
+
+Pokretanje:
+npm install
+npx expo install --fix
+npx expo start --lan --clear
