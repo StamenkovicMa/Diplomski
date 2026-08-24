@@ -306,7 +306,7 @@ function MoneyMateApp({session,onLogout}){
     {tab==='Transakcije'&&<Transactions data={data} onAdd={()=>{setScanOnOpen(false);setEditTx(null);setTxModal(true)}} onEdit={x=>{setScanOnOpen(false);setEditTx(x);setTxModal(true)}} onDelete={removeTx}/>} 
     {tab==='Budžeti'&&<Budgets data={data} month={currentMonth} onAdd={()=>{setEditBudget(null);setBudgetModal(true)}} onEdit={x=>{setEditBudget(x);setBudgetModal(true)}} onDelete={removeBudget}/>} 
     {tab==='Ciljevi'&&<Goals data={data} onAdd={()=>{setEditGoal(null);setGoalModal(true)}} onEdit={x=>{setEditGoal(x);setGoalModal(true)}} onDelete={removeGoal} onPurchase={purchaseGoal}/>} 
-    {tab==='Izveštaji'&&<Reports transactions={data.transactions}/>} 
+    {tab==='Izveštaji'&&<Reports transactions={data.transactions} recurring={data.recurring} goals={data.goals}/>} 
     {tab==='Ponavljanja'&&<RecurringTransactions data={data} onAdd={()=>{setEditRecurring(null);setRecurringModal(true)}} onEdit={x=>{setEditRecurring(x);setRecurringModal(true)}} onDelete={removeRecurring} onToggle={toggleRecurring} onRunNow={runRecurringNow} onSkip={skipRecurring}/>} 
     {tab==='Podešavanja'&&<Settings data={data} setData={setData} onBackup={()=>setBackupModal(true)} onLogout={onLogout} email={session.user.email} syncState={syncState}/>} 
     <TabBar tab={tab} setTab={setTab}/>
@@ -837,6 +837,100 @@ function CashFlowTrendChart({series}){
 
 
 
+
+function recurringOccurrencesUntil(rule,endDate){
+  if(!rule?.isActive||!rule?.nextRun)return [];
+  const results=[];
+  let next=rule.nextRun;
+  let guard=0;
+  const maxOccurrences=rule.maxOccurrences?Number(rule.maxOccurrences):null;
+  let generated=Number(rule.generatedCount||0);
+
+  while(next&&next<=endDate&&guard<100){
+    if(rule.endDate&&next>rule.endDate)break;
+    if(maxOccurrences&&generated>=maxOccurrences)break;
+    results.push(next);
+    generated+=1;
+    next=addRecurringPeriod(next,rule.frequency);
+    guard+=1;
+  }
+  return results;
+}
+
+function remainingRecurringProjection(recurring){
+  const today=isoToday();
+  const now=new Date();
+  const monthEnd=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(new Date(now.getFullYear(),now.getMonth()+1,0).getDate()).padStart(2,'0')}`;
+  let income=0;
+  let expense=0;
+  let incomeCount=0;
+  let expenseCount=0;
+
+  (recurring||[]).forEach(rule=>{
+    const occurrences=recurringOccurrencesUntil(rule,monthEnd).filter(date=>date>=today);
+    if(!occurrences.length)return;
+    const perOccurrence=amountInRsd(rule);
+    const total=perOccurrence*occurrences.length;
+    if(rule.type==='income'){
+      income+=total;
+      incomeCount+=occurrences.length;
+    }else{
+      expense+=total;
+      expenseCount+=occurrences.length;
+    }
+  });
+
+  return {income,expense,incomeCount,expenseCount,monthEnd};
+}
+
+function purchaseSafetyProjection({transactions,recurring,goals,purchaseAmount}){
+  const stats=computeStats(transactions,monthKey(isoToday()));
+  const lockedSavings=(goals||[]).reduce((sum,goal)=>sum+goalSavedRsd(goal),0);
+  const availableNow=stats.balance-lockedSavings;
+
+  const recurringFuture=remainingRecurringProjection(recurring);
+  const today=new Date();
+  const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+  const day=Math.max(1,today.getDate());
+  const daysLeft=Math.max(0,daysInMonth-day);
+
+  // Procena svakodnevne potrošnje se zasniva samo na već evidentiranim troškovima,
+  // ali buduće recurring stavke se dodaju posebno da ne bi bile izgubljene iz projekcije.
+  const dailyExpense=stats.expense/day;
+  const projectedRemainingDailyExpense=dailyExpense*daysLeft;
+
+  const expectedBeforePurchase=
+    availableNow
+    + recurringFuture.income
+    - recurringFuture.expense
+    - projectedRemainingDailyExpense;
+
+  const afterPurchase=expectedBeforePurchase-Number(purchaseAmount||0);
+
+  // Sigurnosna rezerva = 7 dana prosečne potrošnje.
+  const safetyReserve=dailyExpense*7;
+  const safeToSpend=Math.max(0,expectedBeforePurchase-safetyReserve);
+
+  let status='safe';
+  if(afterPurchase<0)status='danger';
+  else if(afterPurchase<safetyReserve)status='warning';
+
+  return {
+    stats,
+    lockedSavings,
+    availableNow,
+    recurringFuture,
+    dailyExpense,
+    daysLeft,
+    projectedRemainingDailyExpense,
+    expectedBeforePurchase,
+    afterPurchase,
+    safetyReserve,
+    safeToSpend,
+    status,
+  };
+}
+
 function monthPrediction(transactions){
   const today=new Date();
   const currentMonth=monthKey(isoToday());
@@ -889,6 +983,113 @@ function MonthPredictionHero({transactions}){
       <Text style={s.predictionInsightText}>{risk?`Ako nastaviš ovim tempom, očekivani saldo je ${money(p.projectedBalance)}.`:`Ako zadržiš tempo, očekivani saldo je ${money(p.projectedBalance)}, uz projektovanu stopu štednje ${projectedSavingsRate.toFixed(0)}%.`}</Text></View>
     </View>:null}
     <Text style={s.predictionDisclaimer}>Projekcija je informativna i zasniva se na prosečnoj dnevnoj potrošnji tekućeg meseca.</Text>
+  </View>;
+}
+
+
+function SmartPurchasePredictor({transactions,recurring,goals}){
+  const [amount,setAmount]=useState('');
+  const purchaseAmount=parseAmount(amount);
+  const result=purchaseSafetyProjection({transactions,recurring,goals,purchaseAmount});
+
+  const statusConfig=
+    result.status==='danger'
+      ? {label:'Nije preporučljivo',icon:'✕',color:COLORS.red,bg:'#FFF1F1',border:'#F2C7C7'}
+      : result.status==='warning'
+        ? {label:'Moguće, ali rizično',icon:'!',color:COLORS.amber,bg:'#FFF8E9',border:'#F1D9A3'}
+        : {label:'Bezbedna kupovina',icon:'✓',color:COLORS.green,bg:'#ECF9F2',border:'#BFE7CF'};
+
+  return <View style={s.purchasePredictor}>
+    <View style={s.purchasePredictorHeader}>
+      <View style={s.flex}>
+        <Text style={s.purchasePredictorEyebrow}>SMART PURCHASE PREDICTOR</Text>
+        <Text style={s.purchasePredictorTitle}>Koliko bezbedno možeš da potrošiš?</Text>
+        <Text style={s.purchasePredictorSubtitle}>
+          Računamo trenutno stanje, zaključanu štednju, očekivanu potrošnju i buduće ponavljajuće prilive i odlive do kraja meseca.
+        </Text>
+      </View>
+    </View>
+
+    <View style={s.purchaseAmountBox}>
+      <Text style={s.purchaseAmountLabel}>Planirani iznos kupovine</Text>
+      <View style={s.purchaseAmountInputRow}>
+        <TextInput
+          style={s.purchaseAmountInput}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          placeholder="0"
+          placeholderTextColor={COLORS.muted}
+        />
+        <Text style={s.purchaseAmountCurrency}>RSD</Text>
+      </View>
+    </View>
+
+    <View style={s.safeSpendHero}>
+      <Text style={s.safeSpendLabel}>Maksimalno bezbedno za trošenje</Text>
+      <Text style={s.safeSpendValue}>{money(result.safeToSpend)}</Text>
+      <Text style={s.safeSpendHint}>
+        uz sigurnosnu rezervu od približno {money(result.safetyReserve)}
+      </Text>
+    </View>
+
+    <View style={s.purchaseFlowGrid}>
+      <View style={s.purchaseFlowCard}>
+        <Text style={s.purchaseFlowIcon}>💰</Text>
+        <Text style={s.purchaseFlowLabel}>Dostupno sada</Text>
+        <Text style={s.purchaseFlowValue}>{money(result.availableNow)}</Text>
+      </View>
+      <View style={s.purchaseFlowCard}>
+        <Text style={s.purchaseFlowIcon}>↗</Text>
+        <Text style={s.purchaseFlowLabel}>Budući prilivi</Text>
+        <Text style={[s.purchaseFlowValue,{color:COLORS.green}]}>{money(result.recurringFuture.income)}</Text>
+        <Text style={s.purchaseFlowSub}>{result.recurringFuture.incomeCount} ponavljanja</Text>
+      </View>
+      <View style={s.purchaseFlowCard}>
+        <Text style={s.purchaseFlowIcon}>↘</Text>
+        <Text style={s.purchaseFlowLabel}>Budući odlivi</Text>
+        <Text style={[s.purchaseFlowValue,{color:COLORS.red}]}>{money(result.recurringFuture.expense)}</Text>
+        <Text style={s.purchaseFlowSub}>{result.recurringFuture.expenseCount} ponavljanja</Text>
+      </View>
+    </View>
+
+    <View style={s.purchaseCalculationBox}>
+      <View style={s.purchaseCalcRow}>
+        <Text style={s.purchaseCalcLabel}>Procena ostale dnevne potrošnje</Text>
+        <Text style={s.purchaseCalcValue}>− {money(result.projectedRemainingDailyExpense)}</Text>
+      </View>
+      <View style={s.purchaseCalcRow}>
+        <Text style={s.purchaseCalcLabel}>Očekivano stanje pre kupovine</Text>
+        <Text style={s.purchaseCalcValue}>{money(result.expectedBeforePurchase)}</Text>
+      </View>
+      <View style={s.purchaseCalcDivider}/>
+      <View style={s.purchaseCalcRow}>
+        <Text style={s.purchaseCalcLabelStrong}>Nakon planirane kupovine</Text>
+        <Text style={[s.purchaseCalcValueStrong,{color:result.afterPurchase>=0?COLORS.green:COLORS.red}]}>
+          {money(result.afterPurchase)}
+        </Text>
+      </View>
+    </View>
+
+    {purchaseAmount>0?<View style={[s.purchaseVerdict,{backgroundColor:statusConfig.bg,borderColor:statusConfig.border}]}>
+      <View style={[s.purchaseVerdictIcon,{backgroundColor:statusConfig.color}]}>
+        <Text style={s.purchaseVerdictIconText}>{statusConfig.icon}</Text>
+      </View>
+      <View style={s.flex}>
+        <Text style={[s.purchaseVerdictTitle,{color:statusConfig.color}]}>{statusConfig.label}</Text>
+        <Text style={s.purchaseVerdictText}>
+          {result.status==='danger'
+            ? `Kupovina od ${money(purchaseAmount)} bi dovela do projektovanog negativnog stanja od ${money(result.afterPurchase)}.`
+            : result.status==='warning'
+              ? `Kupovina je moguća, ali bi ti ostalo manje od preporučene sigurnosne rezerve od ${money(result.safetyReserve)}.`
+              : `Nakon kupovine bi ti prema projekciji ostalo ${money(result.afterPurchase)}, uz očuvanu sigurnosnu rezervu.`}
+        </Text>
+      </View>
+    </View>:null}
+
+    <Text style={s.purchasePredictorDisclaimer}>
+      Procena je informativna. Ponavljajuće transakcije se računaju prema njihovom nextRun datumu i učestalosti do kraja tekućeg meseca.
+    </Text>
   </View>;
 }
 
@@ -966,7 +1167,7 @@ function MonthlyComparisonCard({transactions,currentMonth}){
   </View>;
 }
 
-function Reports({transactions}){
+function Reports({transactions,recurring,goals}){
   const months=lastMonths(6);
   const months12=lastMonths(12);
   const currentMonth=monthKey(isoToday());
@@ -993,6 +1194,9 @@ function Reports({transactions}){
 
     <SectionTitle title="Finansijska prognoza"/>
     <MonthPredictionHero transactions={transactions}/>
+
+    <SectionTitle title="Pametna kupovina"/>
+    <SmartPurchasePredictor transactions={transactions} recurring={recurring} goals={goals}/>
 
     <SectionTitle title="Mesečno poređenje"/>
     <MonthlyComparisonCard transactions={transactions} currentMonth={currentMonth}/>
@@ -1051,7 +1255,7 @@ function monthName(k){const [y,m]=k.split('-');const names=['Jan','Feb','Mar','A
 function categoryTotals(tx){return tx.reduce((o,x)=>{o[x.category]=(o[x.category]||0)+amountInRsd(x);return o},{})}
 function CategoryBars({transactions}){const by=categoryTotals(transactions.filter(x=>x.type==='expense'));const list=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=Math.max(1,...list.map(x=>x[1]));return <View style={s.cardBlock}>{list.length?list.map(([k,v])=><View key={k} style={{marginBottom:12}}><View style={s.space}><Text style={s.smallBold}>{k}</Text><Text style={s.smallMuted}>{money(v)}</Text></View><View style={s.thinBar}><View style={[s.thinFill,{width:`${v/max*100}%`}]}/></View></View>):<Empty text="Nema troškova u ovom mesecu."/>}</View>}
 
-function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate 2.0.0</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
+function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate 2.2.0</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
 function SettingRow({title,subtitle,onPress,danger}){return <Pressable style={[s.settingRow,s.divider]} onPress={onPress}><View style={s.flex}><Text style={[s.smallBold,danger&&{color:COLORS.red}]}>{title}</Text><Text style={s.smallMuted}>{subtitle}</Text></View><Text style={s.chevron}>›</Text></Pressable>}
 
 function TabBar({tab,setTab}){const tabs=[['Početna','⌂'],['Transakcije','↕'],['Budžeti','▣'],['Ciljevi','◆'],['Izveštaji','▥'],['Podešavanja','⚙']];return <View style={s.tabBar}>{tabs.map(([name,icon])=><Pressable key={name} style={s.tab} onPress={()=>setTab(name)}><Text style={[s.tabIcon,tab===name&&s.active]}>{icon}</Text><Text numberOfLines={1} style={[s.tabLabel,tab===name&&s.active]}>{name==='Transakcije'?'Unosi':name==='Podešavanja'?'Opcije':name}</Text></Pressable>)}</View>}
@@ -1696,6 +1900,39 @@ const s=StyleSheet.create({
  categoryProgress:{height:6,backgroundColor:'#EEF2F7',borderRadius:99,overflow:'hidden',marginTop:7},
  categoryProgressFill:{height:'100%',borderRadius:99},
  categoryPercent:{width:33,textAlign:'right',fontSize:11,fontWeight:'900',color:COLORS.ink},
+ purchasePredictor:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#D5E2F2',borderRadius:24,padding:17,marginBottom:18,shadowColor:'#000',shadowOpacity:.05,shadowRadius:12,shadowOffset:{width:0,height:4},elevation:2},
+ purchasePredictorHeader:{marginBottom:14},
+ purchasePredictorEyebrow:{fontSize:9,fontWeight:'900',letterSpacing:1.05,color:COLORS.primary,marginBottom:7},
+ purchasePredictorTitle:{fontSize:20,fontWeight:'900',color:COLORS.ink,lineHeight:26},
+ purchasePredictorSubtitle:{fontSize:10,color:COLORS.muted,lineHeight:16,marginTop:5},
+ purchaseAmountBox:{backgroundColor:'#F8FAFD',borderRadius:16,padding:13,marginBottom:12},
+ purchaseAmountLabel:{fontSize:9,fontWeight:'900',color:COLORS.muted,marginBottom:7},
+ purchaseAmountInputRow:{flexDirection:'row',alignItems:'center',backgroundColor:'#FFFFFF',borderWidth:1,borderColor:COLORS.line,borderRadius:13,paddingHorizontal:12},
+ purchaseAmountInput:{flex:1,fontSize:19,fontWeight:'900',color:COLORS.ink,paddingVertical:11},
+ purchaseAmountCurrency:{fontSize:11,fontWeight:'900',color:COLORS.muted},
+ safeSpendHero:{backgroundColor:'#EEF5FF',borderWidth:1,borderColor:'#C9DCF7',borderRadius:17,padding:15,marginBottom:12},
+ safeSpendLabel:{fontSize:9,fontWeight:'900',color:COLORS.primary},
+ safeSpendValue:{fontSize:25,fontWeight:'900',color:COLORS.primary,marginTop:5},
+ safeSpendHint:{fontSize:9,color:COLORS.muted,marginTop:4},
+ purchaseFlowGrid:{flexDirection:'row',gap:8,marginBottom:12},
+ purchaseFlowCard:{flex:1,backgroundColor:'#FAFBFD',borderWidth:1,borderColor:COLORS.line,borderRadius:14,padding:10,minHeight:102},
+ purchaseFlowIcon:{fontSize:16,marginBottom:7},
+ purchaseFlowLabel:{fontSize:8,fontWeight:'800',color:COLORS.muted,lineHeight:11,minHeight:22},
+ purchaseFlowValue:{fontSize:11,fontWeight:'900',color:COLORS.ink,marginTop:4},
+ purchaseFlowSub:{fontSize:8,color:COLORS.muted,marginTop:3},
+ purchaseCalculationBox:{backgroundColor:'#FAFBFD',borderWidth:1,borderColor:COLORS.line,borderRadius:15,padding:12,marginBottom:12},
+ purchaseCalcRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:12,paddingVertical:6},
+ purchaseCalcLabel:{fontSize:9,color:COLORS.muted,flex:1},
+ purchaseCalcValue:{fontSize:10,fontWeight:'900',color:COLORS.ink,textAlign:'right'},
+ purchaseCalcDivider:{height:1,backgroundColor:COLORS.line,marginVertical:4},
+ purchaseCalcLabelStrong:{fontSize:10,fontWeight:'900',color:COLORS.ink,flex:1},
+ purchaseCalcValueStrong:{fontSize:13,fontWeight:'900',textAlign:'right'},
+ purchaseVerdict:{flexDirection:'row',gap:10,borderWidth:1,borderRadius:15,padding:12,alignItems:'flex-start'},
+ purchaseVerdictIcon:{width:26,height:26,borderRadius:13,alignItems:'center',justifyContent:'center'},
+ purchaseVerdictIconText:{fontSize:13,fontWeight:'900',color:'#FFFFFF'},
+ purchaseVerdictTitle:{fontSize:11,fontWeight:'900',marginBottom:3},
+ purchaseVerdictText:{fontSize:9,color:COLORS.muted,lineHeight:14},
+ purchasePredictorDisclaimer:{fontSize:8,color:COLORS.muted,lineHeight:12,textAlign:'center',marginTop:10},
  predictionHero:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#CFE0F5',borderRadius:24,padding:17,marginBottom:18,shadowColor:'#000',shadowOpacity:.06,shadowRadius:14,shadowOffset:{width:0,height:5},elevation:3},
  predictionEyebrowRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:8},
  predictionEyebrow:{fontSize:9,fontWeight:'900',letterSpacing:1.1,color:COLORS.primary},

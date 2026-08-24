@@ -296,3 +296,18 @@ Nova struktura koristi `src/config`, `src/constants`, `src/services` i `src/util
 `App.js` je sada samo ulazna tačka koja učitava `src/AppRoot.js`.
 
 Detaljno objašnjenje nalazi se u `ARHITEKTURA_PROJEKTA.md`.
+
+
+## Verzija 2.2.0 — Smart Purchase Predictor
+
+Dodata je funkcija za procenu da li korisnik može bezbedno da izvrši planiranu kupovinu.
+
+Proračun uzima u obzir:
+- trenutno mesečno stanje;
+- zaključanu štednju;
+- prosečnu dnevnu potrošnju do kraja meseca;
+- aktivne ponavljajuće prihode koji tek dospevaju;
+- aktivne ponavljajuće troškove koji tek dospevaju;
+- sigurnosnu rezervu u visini približno sedam dana prosečne potrošnje.
+
+Ponavljajuće transakcije se projektuju prema `nextRun`, `frequency`, `endDate`, `maxOccurrences` i `generatedCount` podacima.

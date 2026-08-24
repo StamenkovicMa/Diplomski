@@ -1,23 +1,22 @@
-MONEYMATE 2.1.0 — REFAKTOR STRUKTURE
+MONEYMATE 2.2.0 — SMART PURCHASE PREDICTOR
 
-Pokretanje:
+NOVO:
+- unos planirane kupovine;
+- maksimalno bezbedan iznos za trošenje;
+- budući recurring prihodi;
+- budući recurring troškovi;
+- zaključana štednja;
+- projekcija dnevne potrošnje;
+- očekivani saldo nakon kupovine;
+- status: bezbedno / rizično / nije preporučljivo.
+
+POKRETANJE:
 npm install
 npx expo install --fix
 npx expo start --lan --clear
 
-Proveri da rade:
-- login/registracija
-- transakcije
-- QR skener
-- ciljevi
-- ponavljajuće transakcije
-- izveštaji i predikcija
-
-Git:
+PUSH:
 git status
 git add .
-git commit -m "Refactor application structure"
+git commit -m "Add smart purchase predictor"
 git push origin master
-
-App.js je sada samo entry point.
-Glavna logika je razdvojena u src/config, src/constants, src/services i src/utils.
