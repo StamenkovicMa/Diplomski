@@ -1,30 +1,9 @@
-MONEYMATE 2.3.1 — SRPSKA ĆIRILICA ZA QR RAČUNE
-
-NOVO:
-- srpska ćirilica -> latinica samo za internu analizu
-- normalizacija dijakritike
-- originalne stavke ostaju prikazane kako su pročitane
-- automatska kategorija radi i za ćirilicu i latinicu
-
-TEST:
-МЛЕКО -> Namirnice
-ХЛЕБ -> Namirnice
-ЕВРО ДИЗЕЛ -> Gorivo
-ШАМПОН -> Lična nega
-БРУФЕН -> Lekovi
-ПУЊАЧ -> Tehnika
-
-Pokretanje:
+MONEYMATE 2.3.2
 npm install
 npx expo install --fix
 npx expo start --lan --clear
 
-Git:
 git status
 git add .
-git commit -m "Add Serbian Cyrillic QR normalization"
+git commit -m "Expand smart QR expense categorization"
 git push origin master
-
-Napomena:
-Client-side kategorizacija radi bez dodatne Supabase migracije.
-Edge Function je samo dopunjena eksplicitnim UTF-8 JSON headerom.

@@ -345,3 +345,7 @@ Primeri:
 - `ПУЊАЧ` → `punjac` → Tehnika
 
 Originalni ćirilični tekst nije izmenjen u prikazu računa.
+
+
+## 2.3.2 Expanded Smart Categorization
+QR klasifikator je proširen na veliki broj postojećih MoneyMate kategorija: hrana, vozilo, zdravlje, nega, tehnika, stanovanje, odeća, zabava, ljubimci, obrazovanje, putovanja, računi i finansijske obaveze. Podržani su ćirilica i latinica.
