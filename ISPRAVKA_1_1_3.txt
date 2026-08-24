@@ -1,2 +1,0 @@
-Ispravljena greška 'Unterminated string constant' u QR obradi.
-Napomene se sada spajaju pomoću \n bez prekidanja JavaScript stringa.

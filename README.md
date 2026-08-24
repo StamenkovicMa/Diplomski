@@ -286,3 +286,13 @@ Prikazuju se:
 Kod troškova se pad prikazuje kao pozitivna promena, dok je kod prihoda i neto rezultata rast pozitivan.
 
 Nisu dodavane nove biblioteke niti menjani Supabase, QR parser, ciljevi ili ponavljajuće transakcije.
+
+
+## Verzija 2.1.0 — refaktorisana struktura
+
+Aplikaciona logika više nije koncentrisana u `App.js`.
+
+Nova struktura koristi `src/config`, `src/constants`, `src/services` i `src/utils`.
+`App.js` je sada samo ulazna tačka koja učitava `src/AppRoot.js`.
+
+Detaljno objašnjenje nalazi se u `ARHITEKTURA_PROJEKTA.md`.

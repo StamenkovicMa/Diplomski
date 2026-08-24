@@ -1,6 +1,6 @@
 {
   "name": "moneymate-final",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -26,6 +26,8 @@
     "expo-camera": "~17.0.9"
   },
   "devDependencies": {
-    "supabase": "^2.34.3"
+    "@types/react": "~19.1.10",
+    "supabase": "^2.34.3",
+    "typescript": "~5.9.2"
   }
 }
