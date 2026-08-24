@@ -1,8 +1,29 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/supabase';
 import { isoToday } from '../utils/helpers';
 
+
+const CYRILLIC_TO_LATIN={
+  'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Ђ':'DJ','Е':'E','Ж':'Z','З':'Z','И':'I','Ј':'J','К':'K','Л':'L','Љ':'LJ','М':'M','Н':'N','Њ':'NJ','О':'O','П':'P','Р':'R','С':'S','Т':'T','Ћ':'C','У':'U','Ф':'F','Х':'H','Ц':'C','Ч':'C','Џ':'DZ','Ш':'S',
+  'а':'a','б':'b','в':'v','г':'g','д':'d','ђ':'dj','е':'e','ж':'z','з':'z','и':'i','ј':'j','к':'k','л':'l','љ':'lj','м':'m','н':'n','њ':'nj','о':'o','п':'p','р':'r','с':'s','т':'t','ћ':'c','у':'u','ф':'f','х':'h','ц':'c','ч':'c','џ':'dz','ш':'s'
+};
+
+export function transliterateSerbianCyrillic(value){
+  return String(value||'').split('').map(ch=>CYRILLIC_TO_LATIN[ch]??ch).join('');
+}
+
+export function normalizeSerbianText(value){
+  return transliterateSerbianCyrillic(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/đ/g,'dj')
+    .replace(/[^a-z0-9\s.%+\-/]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
 export function normalizeKey(value){
-  return String(value||'').toLowerCase().replace(/[^a-z0-9čćžšđ]/g,'');
+  return normalizeSerbianText(value).replace(/[^a-z0-9]/g,'');
 }
 export function findDeepValue(source,possibleKeys){
   const wanted=possibleKeys.map(normalizeKey);
@@ -53,17 +74,103 @@ export function parseReceiptDate(value){
   const parsed=new Date(text);
   return Number.isNaN(parsed.getTime())?isoToday():parsed.toISOString().slice(0,10);
 }
+const CATEGORY_RULES=[
+  {category:'Namirnice',merchant:/maxi|idea|lidl|dis|univerexport|aroma|tempo|aman|roda|mercator|market|prodavn|trgov|samoposlug/,items:/hleb|mleko|jogurt|sir|meso|pilet|junet|svinj|riba|jaja|voce|povrce|banana|jabuk|krompir|pirinac|testen|brasno|ulje|voda|sok|kafa|caj|cokolad|keks|namirnic|salama|sunka|kobasic|pavlak|puter|margarin|secer|so\b/},
+  {category:'Gorivo',merchant:/nis|gazprom|omv|mol|lukoil|euro petrol|pump|goriv/,items:/benzin|dizel|evrodizel|euro dizel|gorivo|adblue|tng|lpg|premium dizel/},
+  {category:'Lekovi',merchant:/apot|pharm|benu|dr max|galen pharm/,items:/lek|brufen|paracetamol|vitamin|sirup|tablet|kapsul|probiotik|magnezijum|zavoj|mast\b|sprej|antibiotik/},
+  {category:'Lična nega',merchant:/dm droger|lilly|droger|kozmetik/,items:/sampon|dezodorans|pasta za zube|gel za tus|krema|parfem|sapun|kozmetik|higijen|pelene|ulosci|cetkica/},
+  {category:'Dostava hrane',merchant:/wolt|glovo|dostav/,items:/dostava|delivery/},
+  {category:'Restorani',merchant:/restoran|kafana|pizza|burger|mcdonald|kfc|food|grill|pekara|coffee|cafe|kafic|bistro/,items:/pizza|burger|sendvic|obrok|kafa|espresso|kapucino|pivo|rucak|dorucak|pecivo|pljeskavic|cevap|salata/},
+  {category:'Tehnika',merchant:/gigatron|tehnoman|computer|mobile|telefon|istyle|ananas tech/,items:/telefon|laptop|racunar|monitor|slusalic|punjac|kabl|mis\b|tastatur|televizor|ssd|usb|adapter|zvucnik/},
+  {category:'Parking',merchant:/parking|park servis/,items:/parking|parkiranje/},
+  {category:'Hotel',merchant:/hotel|apartman|hostel|booking/,items:/nocenje|smestaj|apartman|soba/},
+  {category:'Odeća',merchant:/zara|h&m|reserved|fashion|waikiki|bershka|pull.*bear|stradivarius|sport vision|buzz/,items:/majica|pantalon|farmer|jakna|dukser|patike|cipele|haljina|kosulja|odeca|carape/},
+  {category:'Prevoz',merchant:/car go|cargo|yandex|taxi|pink taxi|naxis/,items:/voznja|taxi|prevoz/},
+];
+
+function itemText(items){
+  return normalizeSerbianText(
+    (Array.isArray(items)?items:[])
+      .map(item=>`${item?.name||''} ${item?.description||''}`)
+      .join(' ')
+  );
+}
+
+export function categorizeFiscalReceipt(receipt){
+  const merchant=normalizeSerbianText(receipt?.merchantName||receipt?.merchant||receipt?.merchantCompany||'');
+  const items=Array.isArray(receipt?.items)?receipt.items:[];
+  const combinedItems=itemText(items);
+  const scores=new Map();
+
+  CATEGORY_RULES.forEach(rule=>{
+    let score=0;
+    let merchantMatched=false;
+    let itemMatches=0;
+
+    if(rule.merchant.test(merchant)){
+      score+=62;
+      merchantMatched=true;
+    }
+
+    items.forEach(item=>{
+      const text=normalizeSerbianText(`${item?.name||''} ${item?.description||''}`);
+      if(text&&rule.items.test(text)){
+        const value=Math.abs(Number(item?.total||item?.amount||item?.price||0));
+        score+=value>0?Math.min(18,6+Math.log10(value+1)*3):8;
+        itemMatches+=1;
+      }
+    });
+
+    if(!items.length&&combinedItems&&rule.items.test(combinedItems)){
+      score+=12;
+      itemMatches+=1;
+    }
+
+    if(score>0)scores.set(rule.category,{score,merchantMatched,itemMatches});
+  });
+
+  const ranked=[...scores.entries()]
+    .map(([category,data])=>({category,...data}))
+    .sort((a,b)=>b.score-a.score);
+
+  if(!ranked.length){
+    return {
+      category:'Ostali troškovi',
+      confidence:35,
+      source:'fallback',
+      reason:'Prodavac i stavke nisu dovoljno prepoznatljivi za sigurnu automatsku kategorizaciju.'
+    };
+  }
+
+  const best=ranked[0];
+  const second=ranked[1]?.score||0;
+  const gap=best.score-second;
+  let confidence=Math.round(Math.min(97,45+best.score*.45+Math.max(0,gap)*.12));
+  if(best.merchantMatched&&best.itemMatches>0)confidence=Math.max(confidence,90);
+  else if(best.merchantMatched)confidence=Math.max(confidence,82);
+  else if(best.itemMatches>=2)confidence=Math.max(confidence,78);
+  else confidence=Math.max(confidence,62);
+
+  const source=best.merchantMatched&&best.itemMatches>0?'merchant+items':best.merchantMatched?'merchant':'items';
+  const reason=
+    source==='merchant+items'
+      ? `Prepoznati su i prodavac i ${best.itemMatches} relevantne stavke.`
+      : source==='merchant'
+        ? 'Kategorija je predložena na osnovu prepoznatog prodavca.'
+        : `Kategorija je predložena analizom ${best.itemMatches} stavki sa računa.`;
+
+  return {
+    category:best.category,
+    confidence,
+    source,
+    reason,
+    normalizedMerchant:merchant,
+    analyzedItems:items.length
+  };
+}
+
 export function suggestExpenseCategory(merchant){
-  const x=String(merchant||'').toLowerCase();
-  if(/maxi|idea|lidl|dis|univerexport|aroma|tempo|market|prodavn|trgov/.test(x))return 'Namirnice';
-  if(/nis|gazprom|omv|mol|lukoil|pump|goriv/.test(x))return 'Gorivo';
-  if(/apot|pharm|lek/.test(x))return 'Lekovi';
-  if(/wolt|glovo|dostav/.test(x))return 'Dostava hrane';
-  if(/restoran|kafana|pizza|burger|food/.test(x))return 'Restorani';
-  if(/gigatron|tehnoman|computer|mobile|telefon/.test(x))return 'Tehnika';
-  if(/parking/.test(x))return 'Parking';
-  if(/hotel|apartman/.test(x))return 'Hotel';
-  return 'Ostali troškovi';
+  return categorizeFiscalReceipt({merchantName:merchant,items:[]}).category;
 }
 export function extractFiscalUrl(qrValue){
   const raw=String(qrValue||'').trim();

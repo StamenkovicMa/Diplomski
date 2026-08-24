@@ -1,22 +1,30 @@
-MONEYMATE 2.2.0 — SMART PURCHASE PREDICTOR
+MONEYMATE 2.3.1 — SRPSKA ĆIRILICA ZA QR RAČUNE
 
 NOVO:
-- unos planirane kupovine;
-- maksimalno bezbedan iznos za trošenje;
-- budući recurring prihodi;
-- budući recurring troškovi;
-- zaključana štednja;
-- projekcija dnevne potrošnje;
-- očekivani saldo nakon kupovine;
-- status: bezbedno / rizično / nije preporučljivo.
+- srpska ćirilica -> latinica samo za internu analizu
+- normalizacija dijakritike
+- originalne stavke ostaju prikazane kako su pročitane
+- automatska kategorija radi i za ćirilicu i latinicu
 
-POKRETANJE:
+TEST:
+МЛЕКО -> Namirnice
+ХЛЕБ -> Namirnice
+ЕВРО ДИЗЕЛ -> Gorivo
+ШАМПОН -> Lična nega
+БРУФЕН -> Lekovi
+ПУЊАЧ -> Tehnika
+
+Pokretanje:
 npm install
 npx expo install --fix
 npx expo start --lan --clear
 
-PUSH:
+Git:
 git status
 git add .
-git commit -m "Add smart purchase predictor"
+git commit -m "Add Serbian Cyrillic QR normalization"
 git push origin master
+
+Napomena:
+Client-side kategorizacija radi bez dodatne Supabase migracije.
+Edge Function je samo dopunjena eksplicitnim UTF-8 JSON headerom.

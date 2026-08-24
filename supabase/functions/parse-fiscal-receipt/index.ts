@@ -439,6 +439,7 @@ function isAllowedUrl(value: string): boolean {
   }
 }
 
+// Serbian Cyrillic text is preserved as UTF-8; client normalizes only for categorization.
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -455,7 +456,7 @@ Deno.serve(async (request) => {
         }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json; charset=utf-8" },
         },
       );
     }
@@ -643,7 +644,7 @@ Deno.serve(async (request) => {
       {
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          "Content-Type": "application/json; charset=utf-8",
         },
       },
     );
@@ -658,7 +659,7 @@ Deno.serve(async (request) => {
         status: 500,
         headers: {
           ...corsHeaders,
-          "Content-Type": "application/json",
+          "Content-Type": "application/json; charset=utf-8",
         },
       },
     );

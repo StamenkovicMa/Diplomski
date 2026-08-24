@@ -311,3 +311,37 @@ Proračun uzima u obzir:
 - sigurnosnu rezervu u visini približno sedam dana prosečne potrošnje.
 
 Ponavljajuće transakcije se projektuju prema `nextRun`, `frequency`, `endDate`, `maxOccurrences` i `generatedCount` podacima.
+
+
+## Verzija 2.3.0 — QR automatska kategorizacija
+
+Posle skeniranja fiskalnog QR koda MoneyMate sada analizira:
+- naziv prodavca;
+- prepoznate stavke računa;
+- kombinaciju prodavca i stavki.
+
+Aplikacija automatski bira najverovatniju kategoriju i prikazuje procenat pouzdanosti.
+Korisnik i dalje može ručno da promeni predloženu kategoriju pre čuvanja transakcije.
+
+Podržana su pravila za namirnice, gorivo, lekove, ličnu negu, dostavu hrane,
+restorane, tehniku, parking, hotel, odeću i prevoz, uz fallback na Ostale troškove.
+
+
+## Verzija 2.3.1 — srpska ćirilica u fiskalnim računima
+
+QR kategorizacija je prilagođena računima u Srbiji.
+
+- originalni naziv prodavca i stavki ostaje prikazan korisniku;
+- za internu analizu ćirilica se transliteriše u latinicu;
+- `č/ć/š/ž/đ` se normalizuju;
+- ista pravila rade za ćirilične i latinične račune;
+- kategorija i confidence score se računaju iz prodavca i stavki.
+
+Primeri:
+- `МЛЕКО 2.8%` → `mleko 2.8` → Namirnice
+- `ЕВРО ДИЗЕЛ` → `evro dizel` → Gorivo
+- `ШАМПОН` → `sampon` → Lična nega
+- `БРУФЕН` → `brufen` → Lekovi
+- `ПУЊАЧ` → `punjac` → Tehnika
+
+Originalni ćirilični tekst nije izmenjen u prikazu računa.

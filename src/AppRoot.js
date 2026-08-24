@@ -18,7 +18,7 @@ import {
 } from './utils/finance';
 import { uid, isoToday, monthKey, parseAmount, money, percent, dateLabel } from './utils/helpers';
 import {
-  parseReceiptAmount, parseReceiptDate, suggestExpenseCategory,
+  parseReceiptAmount, parseReceiptDate, suggestExpenseCategory, categorizeFiscalReceipt,
   extractFiscalUrl, fetchFiscalReceipt,
 } from './services/fiscalReceiptService';
 
@@ -1255,7 +1255,7 @@ function monthName(k){const [y,m]=k.split('-');const names=['Jan','Feb','Mar','A
 function categoryTotals(tx){return tx.reduce((o,x)=>{o[x.category]=(o[x.category]||0)+amountInRsd(x);return o},{})}
 function CategoryBars({transactions}){const by=categoryTotals(transactions.filter(x=>x.type==='expense'));const list=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=Math.max(1,...list.map(x=>x[1]));return <View style={s.cardBlock}>{list.length?list.map(([k,v])=><View key={k} style={{marginBottom:12}}><View style={s.space}><Text style={s.smallBold}>{k}</Text><Text style={s.smallMuted}>{money(v)}</Text></View><View style={s.thinBar}><View style={[s.thinFill,{width:`${v/max*100}%`}]}/></View></View>):<Empty text="Nema troškova u ovom mesecu."/>}</View>}
 
-function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate 2.2.0</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
+function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate 2.3.1</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
 function SettingRow({title,subtitle,onPress,danger}){return <Pressable style={[s.settingRow,s.divider]} onPress={onPress}><View style={s.flex}><Text style={[s.smallBold,danger&&{color:COLORS.red}]}>{title}</Text><Text style={s.smallMuted}>{subtitle}</Text></View><Text style={s.chevron}>›</Text></Pressable>}
 
 function TabBar({tab,setTab}){const tabs=[['Početna','⌂'],['Transakcije','↕'],['Budžeti','▣'],['Ciljevi','◆'],['Izveštaji','▥'],['Podešavanja','⚙']];return <View style={s.tabBar}>{tabs.map(([name,icon])=><Pressable key={name} style={s.tab} onPress={()=>setTab(name)}><Text style={[s.tabIcon,tab===name&&s.active]}>{icon}</Text><Text numberOfLines={1} style={[s.tabLabel,tab===name&&s.active]}>{name==='Transakcije'?'Unosi':name==='Podešavanja'?'Opcije':name}</Text></Pressable>)}</View>}
@@ -1363,6 +1363,7 @@ function TransactionModal({visible,initial,autoScan,onClose,onSave}){
   const [invoiceNumber,setInvoiceNumber]=useState('');
   const [qrResult,setQrResult]=useState(null);
   const [manualQrValue,setManualQrValue]=useState('');
+  const [qrCategorySuggestion,setQrCategorySuggestion]=useState(null);
 
   useEffect(()=>{
     if(visible){
@@ -1379,6 +1380,7 @@ function TransactionModal({visible,initial,autoScan,onClose,onSave}){
       setInvoiceNumber(initial?.invoiceNumber||'');
       setQrResult(null);
       setManualQrValue(initial?.qrUrl||'');
+      setQrCategorySuggestion(null);
       setQrBusy(false);
       setScannerVisible(false);
     }
@@ -1421,7 +1423,9 @@ function TransactionModal({visible,initial,autoScan,onClose,onSave}){
       if(Number(receipt.totalAmount)>0)setAmount(String(receipt.totalAmount));
       setDate(receipt.date||isoToday());
       setInvoiceNumber(receipt.invoiceNumber||'');
-      setCategory(suggestExpenseCategory(receipt.merchantName||receipt.merchant));
+      const categorySuggestion=categorizeFiscalReceipt(receipt);
+      setCategory(categorySuggestion.category);
+      setQrCategorySuggestion(categorySuggestion);
 
       const itemLines=Array.isArray(receipt.items)
         ? receipt.items.slice(0,12).map(item=>{
@@ -1461,10 +1465,12 @@ function TransactionModal({visible,initial,autoScan,onClose,onSave}){
           Array.isArray(receipt.items)&&receipt.items.length
             ? `Prepoznato stavki: ${receipt.items.length}`
             : 'Račun nema dostupnu listu stavki ili je u pitanju usluga.',
-          'Proveri podatke pre čuvanja.'
+          `Kategorija: ${categorySuggestion.category} (${categorySuggestion.confidence}% pouzdanost)`,
+          'Kategoriju možeš ručno promeniti pre čuvanja. Analiza podržava i ćirilicu i latinicu.'
         ].join('\n')
       });
     }catch(e){
+      setQrCategorySuggestion(null);
       setTitle(current=>current||'Fiskalni račun');
       setDate(current=>current||isoToday());
       setNote(current=>current
@@ -1611,8 +1617,26 @@ function TransactionModal({visible,initial,autoScan,onClose,onSave}){
       <View style={s.conversionCard}><Text style={s.smallMuted}>Vrednost za statistiku i ukupno stanje</Text><Text style={s.conversionValue}>≈ {money(parseAmount(amount)*parseAmount(exchangeRate))}</Text></View>
     </>:null}
 
+    {type==='expense'&&qrCategorySuggestion?<View style={s.qrCategoryCard}>
+      <View style={s.qrCategoryTop}>
+        <View style={s.flex}>
+          <Text style={s.qrCategoryEyebrow}>AUTOMATSKI PREPOZNATA KATEGORIJA</Text>
+          <Text style={s.qrCategoryName}>{CATEGORY_ICONS[qrCategorySuggestion.category]||'🏷️'} {qrCategorySuggestion.category}</Text>
+        </View>
+        <View style={[
+          s.qrConfidenceBadge,
+          qrCategorySuggestion.confidence>=80?s.qrConfidenceHigh:qrCategorySuggestion.confidence>=60?s.qrConfidenceMedium:s.qrConfidenceLow
+        ]}>
+          <Text style={s.qrConfidenceText}>{qrCategorySuggestion.confidence}%</Text>
+        </View>
+      </View>
+      <Text style={s.qrCategoryReason}>{qrCategorySuggestion.reason}</Text>
+      <Text style={s.qrCategoryNormalization}>SR normalizacija: ćirilica i latinica se analiziraju u istoj internoj formi.</Text>
+      <Text style={s.qrCategoryHint}>Ako predlog nije tačan, izaberi drugu kategoriju ispod.</Text>
+    </View>:null}
+
     <Label text="Izaberi kategoriju"/>
-    <CategorySelector type={type} value={category} onChange={setCategory}/>
+    <CategorySelector type={type} value={category} onChange={value=>{setCategory(value);if(qrCategorySuggestion)setQrCategorySuggestion({...qrCategorySuggestion,category:value,reason:'Kategoriju je ručno promenio korisnik.'});}}/>
     <Label text="Datum"/>
     <TextInput style={s.input} value={date} onChangeText={setDate} placeholder="2026-07-25" autoCapitalize="none"/>
     <Label text="Beleška (opciono)"/>
@@ -2063,6 +2087,16 @@ const s=StyleSheet.create({
  conversionCard:{backgroundColor:COLORS.soft,borderRadius:14,padding:13,marginBottom:4},
  conversionValue:{fontSize:19,fontWeight:'900',color:COLORS.primary,marginTop:4},
  currencyEquivalent:{fontSize:10,fontWeight:'700',color:COLORS.amber,marginTop:4},
+ qrCategoryCard:{backgroundColor:'#F4F8FF',borderWidth:1,borderColor:'#C9DCF7',borderRadius:17,padding:14,marginTop:14,marginBottom:4},
+ qrCategoryTop:{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between',gap:10},
+ qrCategoryEyebrow:{fontSize:8,fontWeight:'900',letterSpacing:.8,color:COLORS.primary,marginBottom:5},
+ qrCategoryName:{fontSize:17,fontWeight:'900',color:COLORS.ink},
+ qrConfidenceBadge:{minWidth:48,borderRadius:999,paddingHorizontal:9,paddingVertical:7,alignItems:'center'},
+ qrConfidenceHigh:{backgroundColor:'#DDF5E8'},qrConfidenceMedium:{backgroundColor:'#FFF1CE'},qrConfidenceLow:{backgroundColor:'#FFE2E2'},
+ qrConfidenceText:{fontSize:10,fontWeight:'900',color:COLORS.ink},
+ qrCategoryReason:{fontSize:10,color:COLORS.muted,lineHeight:15,marginTop:9},
+ qrCategoryNormalization:{fontSize:8,color:COLORS.muted,marginTop:5,fontStyle:'italic'},
+ qrCategoryHint:{fontSize:9,fontWeight:'800',color:COLORS.primary,marginTop:6},
  qrImportCard:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#BFD5F5',borderRadius:17,padding:14,marginTop:14,marginBottom:4,flexDirection:'row',alignItems:'center',gap:10},
  qrImportTitle:{fontSize:14,fontWeight:'900',color:COLORS.ink,marginBottom:3},
  qrScanButton:{backgroundColor:COLORS.primary,borderRadius:13,paddingHorizontal:13,paddingVertical:11},
