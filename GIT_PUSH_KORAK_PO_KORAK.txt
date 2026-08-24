@@ -1,0 +1,27 @@
+MONEYMATE 1.8.0 — GIT PUSH
+
+Ova verzija je pripremljena za Git:
+- nema node_modules
+- nema .expo
+- nema .env
+- nema lokalnih build foldera
+- .gitignore je podešen
+
+AKO VEĆ IMAŠ GIT REPO:
+1. Raspakuj sadržaj ovog foldera preko postojećeg MoneyMate projekta.
+2. Ne briši postojeći .git folder.
+3. Prekopiraj svoj lokalni .env nazad u projekat.
+4. Pokreni:
+   npm install
+   npx expo install --fix
+   npx expo start --lan --clear
+
+5. Kada proveriš da radi:
+   git status
+   git add .
+   git commit -m "Add advanced finance charts"
+   git push origin master
+
+NAPOMENA:
+.env se neće dodati na Git jer je u .gitignore.
+node_modules i .expo se takođe neće pushovati.

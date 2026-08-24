@@ -252,3 +252,18 @@ Podržani su dnevni, nedeljni, mesečni i godišnji intervali, pauziranje, izvr�
 Ciljevi štednje podržavaju RSD, EUR i USD. Zaključavanje koristi RSD protivvrednost, dok se cilj prikazuje i plaća u izabranoj valuti.
 
 Ponavljajuće transakcije prikazuju prihode, troškove i neto rezultat za tekući mesec.
+
+
+## Verzija 1.8.0 — dodatni grafikoni
+
+U ekranu **Izveštaji** dodata su tri nova grafikona bez dodatnih biblioteka:
+
+- **Trend novčanog toka** — mesečni neto rezultat za poslednjih 12 meseci.
+- **Potrošnja po danima u nedelji** — pokazuje kojim danima nastaje najveća potrošnja.
+- **Izvori prihoda** — prikazuje najvažnije kategorije prihoda i njihov procentualni udeo.
+
+Grafikoni koriste postojeće React Native `View` komponente, pa nije potrebna nova chart biblioteka niti promena Supabase baze.
+
+### Git
+
+Repo je pripremljen tako da `.env`, `node_modules`, `.expo`, generisani native folderi i logovi ne ulaze u Git.

@@ -1,6 +1,6 @@
 {
-  "name": "moneymate-final-1-7-goals-currency-recurring-overview",
-  "version": "1.7.0",
+  "name": "moneymate-final",
+  "version": "1.8.0",
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -26,8 +26,6 @@
     "expo-camera": "~17.0.9"
   },
   "devDependencies": {
-    "@types/react": "~19.1.10",
-    "supabase": "^2.34.3",
-    "typescript": "~5.9.2"
+    "supabase": "^2.34.3"
   }
 }

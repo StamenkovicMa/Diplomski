@@ -947,9 +947,137 @@ function CategoryDistributionChart({expenses}){
   </View>;
 }
 
+
+function IncomeDistributionChart({incomes}){
+  const entries=Object.entries(categoryTotals(incomes)).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const total=entries.reduce((sum,item)=>sum+item[1],0);
+  const max=Math.max(1,...entries.map(item=>item[1]));
+  if(!entries.length)return <View style={s.chartCard}><Empty text="Nema prihoda za prikaz izvora prihoda."/></View>;
+  return <View style={s.chartCard}>
+    <View style={s.chartHead}>
+      <View>
+        <Text style={s.chartTitle}>Izvori prihoda</Text>
+        <Text style={s.chartSubtitle}>Odakle dolazi najveći deo novca</Text>
+      </View>
+      <Text style={s.categoryTotal}>{money(total)}</Text>
+    </View>
+    {entries.map(([name,value],index)=>{
+      const share=total?value/total:0;
+      return <View key={name} style={s.incomeSourceRow}>
+        <View style={s.incomeSourceTop}>
+          <View style={s.incomeSourceNameWrap}>
+            <Text style={s.incomeSourceRank}>{index+1}</Text>
+            <Text style={s.incomeSourceName}>{CATEGORY_ICONS[name]||'↗'} {name}</Text>
+          </View>
+          <View style={s.incomeSourceRight}>
+            <Text style={s.incomeSourceAmount}>{money(value)}</Text>
+            <Text style={s.incomeSourcePercent}>{Math.round(share*100)}%</Text>
+          </View>
+        </View>
+        <View style={s.incomeSourceTrack}>
+          <View style={[s.incomeSourceFill,{width:`${Math.max(4,(value/max)*100)}%`}]}/>
+        </View>
+      </View>;
+    })}
+  </View>;
+}
+
+function WeekdayExpenseChart({expenses}){
+  const labels=['Pon','Uto','Sre','Čet','Pet','Sub','Ned'];
+  const values=[0,0,0,0,0,0,0];
+  expenses.forEach(item=>{
+    const raw=String(item.date||'');
+    const parts=raw.split('-').map(Number);
+    if(parts.length!==3||!parts[0]||!parts[1]||!parts[2])return;
+    const date=new Date(parts[0],parts[1]-1,parts[2]);
+    const jsDay=date.getDay();
+    const index=jsDay===0?6:jsDay-1;
+    values[index]+=amountInRsd(item);
+  });
+  const max=Math.max(1,...values);
+  const total=values.reduce((sum,value)=>sum+value,0);
+  const peakIndex=values.indexOf(Math.max(...values));
+  return <View style={s.chartCard}>
+    <View style={s.chartHead}>
+      <View>
+        <Text style={s.chartTitle}>Potrošnja po danima</Text>
+        <Text style={s.chartSubtitle}>Koji dani u nedelji nose najveće troškove</Text>
+      </View>
+      <View style={s.weekdayPeakBadge}>
+        <Text style={s.weekdayPeakLabel}>Najviše</Text>
+        <Text style={s.weekdayPeakValue}>{total?labels[peakIndex]:'—'}</Text>
+      </View>
+    </View>
+    <View style={s.weekdayChart}>
+      {values.map((value,index)=>{
+        const height=Math.max(value?8:3,(value/max)*108);
+        const isPeak=value===Math.max(...values)&&value>0;
+        return <View key={labels[index]} style={s.weekdayGroup}>
+          <View style={s.weekdayBarArea}>
+            <View style={[s.weekdayBar,{height},isPeak&&s.weekdayBarPeak]}/>
+          </View>
+          <Text style={[s.weekdayLabel,isPeak&&s.weekdayLabelPeak]}>{labels[index]}</Text>
+        </View>;
+      })}
+    </View>
+    <View style={s.chartFooter}>
+      <Text style={s.smallMuted}>Ukupno: {money(total)}</Text>
+      <Text style={s.smallMuted}>Raspodela kroz celu istoriju</Text>
+    </View>
+  </View>;
+}
+
+function CashFlowTrendChart({series}){
+  const values=series.map(item=>item.monthBalance);
+  const max=Math.max(1,...values.map(value=>Math.abs(value)));
+  let running=0;
+  const cumulative=series.map(item=>{
+    running+=item.monthBalance;
+    return {...item,cumulative:running};
+  });
+  const finalValue=cumulative[cumulative.length-1]?.cumulative||0;
+  return <View style={s.chartCard}>
+    <View style={s.chartHead}>
+      <View>
+        <Text style={s.chartTitle}>Trend novčanog toka</Text>
+        <Text style={s.chartSubtitle}>Mesečni rezultat i kumulativni smer</Text>
+      </View>
+      <Text style={[s.cashFlowFinal,{color:finalValue>=0?COLORS.green:COLORS.red}]}>
+        {finalValue>=0?'+':''}{money(finalValue)}
+      </Text>
+    </View>
+    <View style={s.cashFlowRows}>
+      {cumulative.map(item=>{
+        const positive=item.monthBalance>=0;
+        const width=Math.max(3,(Math.abs(item.monthBalance)/max)*100);
+        return <View key={item.month} style={s.cashFlowRow}>
+          <Text style={s.cashFlowMonth}>{monthName(item.month).split(' ')[0]}</Text>
+          <View style={s.cashFlowTrack}>
+            <View style={[
+              s.cashFlowFill,
+              {width:`${width}%`,backgroundColor:positive?COLORS.green:COLORS.red}
+            ]}/>
+          </View>
+          <Text style={[s.cashFlowValue,{color:positive?COLORS.green:COLORS.red}]}>
+            {positive?'+':''}{money(item.monthBalance)}
+          </Text>
+        </View>;
+      })}
+    </View>
+    <View style={s.cashFlowCumulative}>
+      <Text style={s.smallMuted}>Kumulativno za prikazani period</Text>
+      <Text style={[s.cashFlowCumulativeValue,{color:finalValue>=0?COLORS.green:COLORS.red}]}>
+        {finalValue>=0?'+':''}{money(finalValue)}
+      </Text>
+    </View>
+  </View>;
+}
+
 function Reports({transactions}){
   const months=lastMonths(6);
+  const months12=lastMonths(12);
   const series=months.map(month=>({month,...computeStats(transactions,month)}));
+  const series12=months12.map(month=>({month,...computeStats(transactions,month)}));
   const expenses=transactions.filter(item=>item.type==='expense');
   const incomes=transactions.filter(item=>item.type==='income');
   const totalIncome=incomes.reduce((sum,item)=>sum+amountInRsd(item),0);
@@ -969,9 +1097,15 @@ function Reports({transactions}){
       <ReportMetric label="Stopa štednje" value={`${Math.round(savingsRate)}%`} tone="amber" caption="Udeo sačuvanog prihoda"/>
     </View>
 
+    <SectionTitle title="Osnovni grafikoni"/>
     <MonthlyColumnChart series={series}/>
     <BalanceChart series={series}/>
     <CategoryDistributionChart expenses={expenses}/>
+
+    <SectionTitle title="Napredna analiza"/>
+    <CashFlowTrendChart series={series12}/>
+    <WeekdayExpenseChart expenses={expenses}/>
+    <IncomeDistributionChart incomes={incomes}/>
 
     <SectionTitle title="Finansijski uvidi"/>
     <View style={s.insightGrid}>
@@ -986,7 +1120,7 @@ function monthName(k){const [y,m]=k.split('-');const names=['Jan','Feb','Mar','A
 function categoryTotals(tx){return tx.reduce((o,x)=>{o[x.category]=(o[x.category]||0)+amountInRsd(x);return o},{})}
 function CategoryBars({transactions}){const by=categoryTotals(transactions.filter(x=>x.type==='expense'));const list=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=Math.max(1,...list.map(x=>x[1]));return <View style={s.cardBlock}>{list.length?list.map(([k,v])=><View key={k} style={{marginBottom:12}}><View style={s.space}><Text style={s.smallBold}>{k}</Text><Text style={s.smallMuted}>{money(v)}</Text></View><View style={s.thinBar}><View style={[s.thinFill,{width:`${v/max*100}%`}]}/></View></View>):<Empty text="Nema troškova u ovom mesecu."/>}</View>}
 
-function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate Multi-user 3.2</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
+function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate 1.8.0</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
 function SettingRow({title,subtitle,onPress,danger}){return <Pressable style={[s.settingRow,s.divider]} onPress={onPress}><View style={s.flex}><Text style={[s.smallBold,danger&&{color:COLORS.red}]}>{title}</Text><Text style={s.smallMuted}>{subtitle}</Text></View><Text style={s.chevron}>›</Text></Pressable>}
 
 function TabBar({tab,setTab}){const tabs=[['Početna','⌂'],['Transakcije','↕'],['Budžeti','▣'],['Ciljevi','◆'],['Izveštaji','▥'],['Podešavanja','⚙']];return <View style={s.tabBar}>{tabs.map(([name,icon])=><Pressable key={name} style={s.tab} onPress={()=>setTab(name)}><Text style={[s.tabIcon,tab===name&&s.active]}>{icon}</Text><Text numberOfLines={1} style={[s.tabLabel,tab===name&&s.active]}>{name==='Transakcije'?'Unosi':name==='Podešavanja'?'Opcije':name}</Text></Pressable>)}</View>}
@@ -1631,6 +1765,35 @@ const s=StyleSheet.create({
  categoryProgress:{height:6,backgroundColor:'#EEF2F7',borderRadius:99,overflow:'hidden',marginTop:7},
  categoryProgressFill:{height:'100%',borderRadius:99},
  categoryPercent:{width:33,textAlign:'right',fontSize:11,fontWeight:'900',color:COLORS.ink},
+ incomeSourceRow:{marginBottom:15},
+ incomeSourceTop:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:10},
+ incomeSourceNameWrap:{flexDirection:'row',alignItems:'center',gap:8,flex:1},
+ incomeSourceRank:{width:23,height:23,borderRadius:12,backgroundColor:'#ECFAF4',color:COLORS.green,textAlign:'center',textAlignVertical:'center',fontSize:10,fontWeight:'900',paddingTop:4},
+ incomeSourceName:{fontSize:12,fontWeight:'800',color:COLORS.ink,flex:1},
+ incomeSourceRight:{alignItems:'flex-end'},
+ incomeSourceAmount:{fontSize:11,fontWeight:'900',color:COLORS.ink},
+ incomeSourcePercent:{fontSize:9,fontWeight:'800',color:COLORS.muted,marginTop:2},
+ incomeSourceTrack:{height:7,backgroundColor:'#EDF2F6',borderRadius:99,overflow:'hidden',marginTop:8},
+ incomeSourceFill:{height:'100%',backgroundColor:COLORS.green,borderRadius:99},
+ weekdayPeakBadge:{backgroundColor:'#FFF8E9',borderWidth:1,borderColor:'#F1D9A3',borderRadius:12,paddingHorizontal:10,paddingVertical:7,alignItems:'center'},
+ weekdayPeakLabel:{fontSize:8,color:COLORS.muted,fontWeight:'800'},
+ weekdayPeakValue:{fontSize:12,color:'#B87800',fontWeight:'900',marginTop:2},
+ weekdayChart:{height:145,flexDirection:'row',alignItems:'flex-end',justifyContent:'space-between',paddingHorizontal:2},
+ weekdayGroup:{flex:1,alignItems:'center'},
+ weekdayBarArea:{height:112,justifyContent:'flex-end',alignItems:'center'},
+ weekdayBar:{width:22,backgroundColor:'#B8C8DB',borderTopLeftRadius:8,borderTopRightRadius:8,minHeight:3},
+ weekdayBarPeak:{backgroundColor:COLORS.primary},
+ weekdayLabel:{fontSize:9,color:COLORS.muted,fontWeight:'800',marginTop:7},
+ weekdayLabelPeak:{color:COLORS.primary},
+ cashFlowFinal:{fontSize:13,fontWeight:'900'},
+ cashFlowRows:{gap:10},
+ cashFlowRow:{flexDirection:'row',alignItems:'center',gap:9},
+ cashFlowMonth:{width:30,fontSize:9,fontWeight:'800',color:COLORS.muted},
+ cashFlowTrack:{flex:1,height:8,backgroundColor:'#EDF2F6',borderRadius:99,overflow:'hidden'},
+ cashFlowFill:{height:'100%',borderRadius:99},
+ cashFlowValue:{width:86,textAlign:'right',fontSize:9,fontWeight:'900'},
+ cashFlowCumulative:{marginTop:16,paddingTop:13,borderTopWidth:1,borderTopColor:COLORS.line,flexDirection:'row',justifyContent:'space-between',alignItems:'center'},
+ cashFlowCumulativeValue:{fontSize:13,fontWeight:'900'},
  insightGrid:{flexDirection:'row',flexWrap:'wrap',gap:10},
  insightCard:{width:'48.4%',backgroundColor:'#FFFFFF',borderWidth:1,borderColor:COLORS.line,borderRadius:18,padding:15,minHeight:125},
  insightIcon:{fontSize:21,color:COLORS.primary,fontWeight:'900'},
