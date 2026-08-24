@@ -267,3 +267,22 @@ Grafikoni koriste postojeće React Native `View` komponente, pa nije potrebna no
 ### Git
 
 Repo je pripremljen tako da `.env`, `node_modules`, `.expo`, generisani native folderi i logovi ne ulaze u Git.
+
+
+## Verzija 1.9.0 — mesečno poređenje
+
+U ekranu **Izveštaji** dodat je blok za poređenje tekućeg i prethodnog meseca.
+
+Prikazuju se:
+- prihodi;
+- troškovi;
+- neto rezultat;
+- stopa štednje;
+- procenat promene;
+- strelica rasta/pada;
+- boja koja označava povoljnu ili nepovoljnu promenu;
+- kratki tekstualni uvidi.
+
+Kod troškova se pad prikazuje kao pozitivna promena, dok je kod prihoda i neto rezultata rast pozitivan.
+
+Nisu dodavane nove biblioteke niti menjani Supabase, QR parser, ciljevi ili ponavljajuće transakcije.

@@ -1073,9 +1073,85 @@ function CashFlowTrendChart({series}){
   </View>;
 }
 
+
+function MonthlyComparisonCard({transactions,currentMonth}){
+  const previousMonth=previousMonthKey(currentMonth);
+  const current=computeStats(transactions,currentMonth);
+  const previous=computeStats(transactions,previousMonth);
+
+  const currentSavingsRate=savingsRateForStats(current);
+  const previousSavingsRate=savingsRateForStats(previous);
+
+  const rows=[
+    {label:'Prihodi',current:current.income,previous:previous.income,goodWhenUp:true},
+    {label:'Troškovi',current:current.expense,previous:previous.expense,goodWhenUp:false},
+    {label:'Neto rezultat',current:current.balance,previous:previous.balance,goodWhenUp:true},
+  ];
+
+  return <View style={s.monthCompareCard}>
+    <View style={s.monthCompareHeader}>
+      <View style={s.flex}>
+        <Text style={s.chartTitle}>Poređenje meseci</Text>
+        <Text style={s.chartSubtitle}>{monthName(currentMonth)} u odnosu na {monthName(previousMonth)}</Text>
+      </View>
+      <View style={s.monthCompareBadge}><Text style={s.monthCompareBadgeText}>MoM</Text></View>
+    </View>
+
+    <View style={s.monthCompareTableHeader}>
+      <Text style={[s.monthCompareHeaderLabel,{flex:1.2,textAlign:'left'}]}>Pokazatelj</Text>
+      <Text style={s.monthCompareHeaderLabel}>Prethodni</Text>
+      <Text style={s.monthCompareHeaderLabel}>Tekući</Text>
+      <Text style={s.monthCompareHeaderLabel}>Promena</Text>
+    </View>
+
+    {rows.map(row=>{
+      const change=percentChange(row.current,row.previous);
+      const favorable=change.direction==='same'
+        ? null
+        : row.goodWhenUp
+          ? change.direction==='up'
+          : change.direction==='down';
+      const changeColor=favorable===null?COLORS.muted:favorable?COLORS.green:COLORS.red;
+
+      return <View key={row.label} style={s.monthCompareRow}>
+        <Text style={[s.monthCompareLabel,{flex:1.2}]}>{row.label}</Text>
+        <Text style={s.monthCompareValue}>{money(row.previous)}</Text>
+        <Text style={s.monthCompareValue}>{money(row.current)}</Text>
+        <View style={s.monthCompareChangeWrap}>
+          <Text style={[s.monthCompareArrow,{color:changeColor}]}>
+            {change.direction==='up'?'↑':change.direction==='down'?'↓':'→'}
+          </Text>
+          <Text style={[s.monthCompareChange,{color:changeColor}]}>{change.label}</Text>
+        </View>
+      </View>;
+    })}
+
+    <View style={s.savingsCompareBox}>
+      <View style={s.flex}>
+        <Text style={s.savingsCompareLabel}>Stopa štednje</Text>
+        <Text style={s.savingsCompareSub}>Koliki deo prihoda ostaje nakon troškova</Text>
+      </View>
+      <View style={s.savingsCompareRight}>
+        <Text style={s.savingsCompareOld}>{previousSavingsRate.toFixed(0)}%</Text>
+        <Text style={s.savingsCompareArrow}>→</Text>
+        <Text style={[s.savingsCompareNew,{color:currentSavingsRate>=previousSavingsRate?COLORS.green:COLORS.red}]}>
+          {currentSavingsRate.toFixed(0)}%
+        </Text>
+      </View>
+    </View>
+
+    <View style={s.monthCompareInsights}>
+      <Text style={s.monthCompareInsightText}>• Prihodi: {comparisonMessage(current.income,previous.income)}</Text>
+      <Text style={s.monthCompareInsightText}>• Troškovi: {comparisonMessage(current.expense,previous.expense)}</Text>
+      <Text style={s.monthCompareInsightText}>• Neto rezultat: {comparisonMessage(current.balance,previous.balance)}</Text>
+    </View>
+  </View>;
+}
+
 function Reports({transactions}){
   const months=lastMonths(6);
   const months12=lastMonths(12);
+  const currentMonth=monthKey(isoToday());
   const series=months.map(month=>({month,...computeStats(transactions,month)}));
   const series12=months12.map(month=>({month,...computeStats(transactions,month)}));
   const expenses=transactions.filter(item=>item.type==='expense');
@@ -1097,6 +1173,9 @@ function Reports({transactions}){
       <ReportMetric label="Stopa štednje" value={`${Math.round(savingsRate)}%`} tone="amber" caption="Udeo sačuvanog prihoda"/>
     </View>
 
+    <SectionTitle title="Mesečno poređenje"/>
+    <MonthlyComparisonCard transactions={transactions} currentMonth={currentMonth}/>
+
     <SectionTitle title="Osnovni grafikoni"/>
     <MonthlyColumnChart series={series}/>
     <BalanceChart series={series}/>
@@ -1115,12 +1194,43 @@ function Reports({transactions}){
     </View>
   </Screen>;
 }
+
+function previousMonthKey(month){
+  const [year,monthNumber]=String(month).split('-').map(Number);
+  const date=new Date(year,monthNumber-2,1);
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`;
+}
+function percentChange(current,previous){
+  const c=Number(current||0);
+  const p=Number(previous||0);
+  if(p===0){
+    if(c===0)return {value:0,label:'0%',direction:'same'};
+    return {value:100,label:'novo',direction:c>0?'up':'down'};
+  }
+  const value=((c-p)/Math.abs(p))*100;
+  return {
+    value,
+    label:`${Math.abs(value).toFixed(0)}%`,
+    direction:value>0?'up':value<0?'down':'same'
+  };
+}
+function savingsRateForStats(stats){
+  return stats.income>0?((stats.income-stats.expense)/stats.income)*100:0;
+}
+function comparisonMessage(current,previous){
+  if(previous===0&&current===0)return 'Bez promene';
+  if(previous===0&&current!==0)return 'Novi rezultat';
+  const change=((current-previous)/Math.abs(previous))*100;
+  if(Math.abs(change)<0.5)return 'Skoro bez promene';
+  return `${change>0?'Rast':'Pad'} od ${Math.abs(change).toFixed(0)}%`;
+}
+
 function lastMonths(n){const a=[];const d=new Date();for(let i=n-1;i>=0;i--){const x=new Date(d.getFullYear(),d.getMonth()-i,1);a.push(`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}`)}return a}
 function monthName(k){const [y,m]=k.split('-');const names=['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Avg','Sep','Okt','Nov','Dec'];return `${names[Number(m)-1]} ${y.slice(2)}`}
 function categoryTotals(tx){return tx.reduce((o,x)=>{o[x.category]=(o[x.category]||0)+amountInRsd(x);return o},{})}
 function CategoryBars({transactions}){const by=categoryTotals(transactions.filter(x=>x.type==='expense'));const list=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=Math.max(1,...list.map(x=>x[1]));return <View style={s.cardBlock}>{list.length?list.map(([k,v])=><View key={k} style={{marginBottom:12}}><View style={s.space}><Text style={s.smallBold}>{k}</Text><Text style={s.smallMuted}>{money(v)}</Text></View><View style={s.thinBar}><View style={[s.thinFill,{width:`${v/max*100}%`}]}/></View></View>):<Empty text="Nema troškova u ovom mesecu."/>}</View>}
 
-function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate 1.8.0</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
+function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate 1.9.0</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
 function SettingRow({title,subtitle,onPress,danger}){return <Pressable style={[s.settingRow,s.divider]} onPress={onPress}><View style={s.flex}><Text style={[s.smallBold,danger&&{color:COLORS.red}]}>{title}</Text><Text style={s.smallMuted}>{subtitle}</Text></View><Text style={s.chevron}>›</Text></Pressable>}
 
 function TabBar({tab,setTab}){const tabs=[['Početna','⌂'],['Transakcije','↕'],['Budžeti','▣'],['Ciljevi','◆'],['Izveštaji','▥'],['Podešavanja','⚙']];return <View style={s.tabBar}>{tabs.map(([name,icon])=><Pressable key={name} style={s.tab} onPress={()=>setTab(name)}><Text style={[s.tabIcon,tab===name&&s.active]}>{icon}</Text><Text numberOfLines={1} style={[s.tabLabel,tab===name&&s.active]}>{name==='Transakcije'?'Unosi':name==='Podešavanja'?'Opcije':name}</Text></Pressable>)}</View>}
@@ -1765,6 +1875,27 @@ const s=StyleSheet.create({
  categoryProgress:{height:6,backgroundColor:'#EEF2F7',borderRadius:99,overflow:'hidden',marginTop:7},
  categoryProgressFill:{height:'100%',borderRadius:99},
  categoryPercent:{width:33,textAlign:'right',fontSize:11,fontWeight:'900',color:COLORS.ink},
+ monthCompareCard:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:COLORS.line,borderRadius:20,padding:16,marginBottom:14},
+ monthCompareHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'flex-start',gap:12,marginBottom:15},
+ monthCompareBadge:{backgroundColor:'#EEF4FF',borderRadius:999,paddingHorizontal:10,paddingVertical:6},
+ monthCompareBadgeText:{fontSize:9,fontWeight:'900',color:COLORS.primary},
+ monthCompareTableHeader:{flexDirection:'row',alignItems:'center',paddingBottom:8,borderBottomWidth:1,borderBottomColor:COLORS.line},
+ monthCompareHeaderLabel:{flex:1,fontSize:8,fontWeight:'900',color:COLORS.muted,textAlign:'right'},
+ monthCompareRow:{flexDirection:'row',alignItems:'center',paddingVertical:12,borderBottomWidth:1,borderBottomColor:'#F0F3F7'},
+ monthCompareLabel:{fontSize:11,fontWeight:'900',color:COLORS.ink},
+ monthCompareValue:{flex:1,fontSize:9,fontWeight:'800',color:COLORS.ink,textAlign:'right'},
+ monthCompareChangeWrap:{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:3},
+ monthCompareArrow:{fontSize:12,fontWeight:'900'},
+ monthCompareChange:{fontSize:9,fontWeight:'900'},
+ savingsCompareBox:{marginTop:14,backgroundColor:'#F8FAFD',borderRadius:14,padding:13,flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:10},
+ savingsCompareLabel:{fontSize:11,fontWeight:'900',color:COLORS.ink},
+ savingsCompareSub:{fontSize:9,color:COLORS.muted,marginTop:3,maxWidth:190},
+ savingsCompareRight:{flexDirection:'row',alignItems:'center',gap:8},
+ savingsCompareOld:{fontSize:12,fontWeight:'800',color:COLORS.muted},
+ savingsCompareArrow:{fontSize:12,fontWeight:'900',color:COLORS.muted},
+ savingsCompareNew:{fontSize:16,fontWeight:'900'},
+ monthCompareInsights:{marginTop:12,gap:5},
+ monthCompareInsightText:{fontSize:10,color:COLORS.muted,lineHeight:15},
  incomeSourceRow:{marginBottom:15},
  incomeSourceTop:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:10},
  incomeSourceNameWrap:{flexDirection:'row',alignItems:'center',gap:8,flex:1},

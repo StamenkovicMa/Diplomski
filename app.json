@@ -2,7 +2,7 @@
   "expo": {
     "name": "MoneyMate",
     "slug": "moneymate-marko",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "platforms": [
@@ -15,7 +15,7 @@
         "NSCameraUsageDescription": "MoneyMate koristi kameru isključivo za skeniranje QR koda fiskalnog računa."
       },
       "bundleIdentifier": "com.markostamenkovic.moneymate",
-      "buildNumber": "18"
+      "buildNumber": "19"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,7 +26,7 @@
         "CAMERA"
       ],
       "package": "com.markostamenkovic.moneymate",
-      "versionCode": 18
+      "versionCode": 19
     },
     "splash": {
       "image": "./assets/splash.png",
