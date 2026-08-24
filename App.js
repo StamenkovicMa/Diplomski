@@ -1074,6 +1074,62 @@ function CashFlowTrendChart({series}){
 }
 
 
+
+function monthPrediction(transactions){
+  const today=new Date();
+  const currentMonth=monthKey(isoToday());
+  const stats=computeStats(transactions,currentMonth);
+  const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+  const day=Math.max(1,today.getDate());
+  const daysLeft=Math.max(0,daysInMonth-day);
+  const dailyExpense=stats.expense/day;
+  const projectedExpense=dailyExpense*daysInMonth;
+  const projectedBalance=stats.income-projectedExpense;
+  return {...stats,day,daysInMonth,daysLeft,dailyExpense,projectedExpense,projectedBalance,progress:Math.min(100,(day/daysInMonth)*100)};
+}
+
+function MonthPredictionHero({transactions}){
+  const p=monthPrediction(transactions);
+  const risk=p.projectedBalance<0;
+  const noExpense=p.expense===0;
+  const projectedSavingsRate=p.income>0?(p.projectedBalance/p.income)*100:0;
+  return <View style={s.predictionHero}>
+    <View style={s.predictionEyebrowRow}>
+      <Text style={s.predictionEyebrow}>FINANSIJSKA PROGNOZA</Text>
+      <View style={[s.predictionStatus,risk?s.predictionStatusRisk:s.predictionStatusGood]}>
+        <Text style={[s.predictionStatusText,{color:risk?COLORS.red:COLORS.green}]}>{risk?'Rizik prekoračenja':'Stabilan tempo'}</Text>
+      </View>
+    </View>
+    <Text style={s.predictionTitle}>{noExpense?'Još nema dovoljno podataka':`Očekivani troškovi: ${money(p.projectedExpense)}`}</Text>
+    <Text style={s.predictionSubtitle}>{noExpense?'Dodaj troškove i projekcija će se automatski pojaviti.':`Procena na osnovu potrošnje u prvih ${p.day} dana ovog meseca.`}</Text>
+
+    {!noExpense?<View style={s.predictionMainGrid}>
+      <View style={s.predictionMainStat}><Text style={s.predictionMainLabel}>POTROŠENO DO SADA</Text><Text style={s.predictionMainValue}>{money(p.expense)}</Text><Text style={s.predictionMainHint}>{p.day}. dan meseca</Text></View>
+      <View style={s.predictionMainDivider}/>
+      <View style={s.predictionMainStat}><Text style={s.predictionMainLabel}>PROJEKCIJA DO KRAJA</Text><Text style={[s.predictionMainValue,{color:risk?COLORS.red:COLORS.primary}]}>{money(p.projectedExpense)}</Text><Text style={s.predictionMainHint}>još {p.daysLeft} dana</Text></View>
+    </View>:null}
+
+    {!noExpense?<View style={s.predictionTrackBox}>
+      <View style={s.predictionTrackHeader}><Text style={s.predictionTrackLabel}>Tok meseca</Text><Text style={s.predictionTrackPercent}>{p.progress.toFixed(0)}%</Text></View>
+      <View style={s.predictionTrack}><View style={[s.predictionTrackFill,{width:`${p.progress}%`}]} /></View>
+      <View style={s.predictionTrackFooter}><Text style={s.predictionTrackFootText}>1. dan</Text><Text style={s.predictionTrackFootText}>{p.daysInMonth}. dan</Text></View>
+    </View>:null}
+
+    <View style={s.predictionCards}>
+      <View style={s.predictionMiniCard}><Text style={s.predictionMiniIcon}>📅</Text><Text style={s.predictionMiniLabel}>Preostalo dana</Text><Text style={s.predictionMiniValue}>{p.daysLeft}</Text></View>
+      <View style={s.predictionMiniCard}><Text style={s.predictionMiniIcon}>📉</Text><Text style={s.predictionMiniLabel}>Prosek dnevno</Text><Text style={s.predictionMiniValue}>{money(p.dailyExpense)}</Text></View>
+      <View style={s.predictionMiniCard}><Text style={s.predictionMiniIcon}>{risk?'⚠️':'💰'}</Text><Text style={s.predictionMiniLabel}>Očekivani saldo</Text><Text style={[s.predictionMiniValue,{color:risk?COLORS.red:COLORS.green}]}>{money(p.projectedBalance)}</Text></View>
+    </View>
+
+    {!noExpense?<View style={[s.predictionInsight,risk?s.predictionInsightRisk:s.predictionInsightGood]}>
+      <Text style={s.predictionInsightIcon}>{risk?'⚠️':'✓'}</Text>
+      <View style={s.flex}><Text style={s.predictionInsightTitle}>{risk?'Troškovi mogu premašiti prihode':'Potrošnja je trenutno pod kontrolom'}</Text>
+      <Text style={s.predictionInsightText}>{risk?`Ako nastaviš ovim tempom, očekivani saldo je ${money(p.projectedBalance)}.`:`Ako zadržiš tempo, očekivani saldo je ${money(p.projectedBalance)}, uz projektovanu stopu štednje ${projectedSavingsRate.toFixed(0)}%.`}</Text></View>
+    </View>:null}
+    <Text style={s.predictionDisclaimer}>Projekcija je informativna i zasniva se na prosečnoj dnevnoj potrošnji tekućeg meseca.</Text>
+  </View>;
+}
+
 function MonthlyComparisonCard({transactions,currentMonth}){
   const previousMonth=previousMonthKey(currentMonth);
   const current=computeStats(transactions,currentMonth);
@@ -1173,6 +1229,9 @@ function Reports({transactions}){
       <ReportMetric label="Stopa štednje" value={`${Math.round(savingsRate)}%`} tone="amber" caption="Udeo sačuvanog prihoda"/>
     </View>
 
+    <SectionTitle title="Finansijska prognoza"/>
+    <MonthPredictionHero transactions={transactions}/>
+
     <SectionTitle title="Mesečno poređenje"/>
     <MonthlyComparisonCard transactions={transactions} currentMonth={currentMonth}/>
 
@@ -1230,7 +1289,7 @@ function monthName(k){const [y,m]=k.split('-');const names=['Jan','Feb','Mar','A
 function categoryTotals(tx){return tx.reduce((o,x)=>{o[x.category]=(o[x.category]||0)+amountInRsd(x);return o},{})}
 function CategoryBars({transactions}){const by=categoryTotals(transactions.filter(x=>x.type==='expense'));const list=Object.entries(by).sort((a,b)=>b[1]-a[1]).slice(0,5);const max=Math.max(1,...list.map(x=>x[1]));return <View style={s.cardBlock}>{list.length?list.map(([k,v])=><View key={k} style={{marginBottom:12}}><View style={s.space}><Text style={s.smallBold}>{k}</Text><Text style={s.smallMuted}>{money(v)}</Text></View><View style={s.thinBar}><View style={[s.thinFill,{width:`${v/max*100}%`}]}/></View></View>):<Empty text="Nema troškova u ovom mesecu."/>}</View>}
 
-function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate 1.9.0</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
+function Settings({data,setData,onBackup,onLogout,email,syncState}){const [name,setName]=useState(data.profile.name||'');const [goal,setGoal]=useState(String(data.profile.monthlyIncomeGoal||''));function save(){setData(d=>({...d,profile:{...d.profile,name:name.trim()||'Korisnik',monthlyIncomeGoal:parseAmount(goal)}}));Alert.alert('Sačuvano','Podešavanja profila su sačuvana.')}function clearAll(){Alert.alert('Obriši sve finansijske podatke','Biće obrisane sve transakcije, budžeti i ciljevi trenutno prijavljenog korisnika. Korisnički nalog i ime ostaju sačuvani.',[{text:'Otkaži',style:'cancel'},{text:'Obriši sve',style:'destructive',onPress:()=>setData({profile:{...data.profile,name:name.trim()||data.profile.name||'Korisnik',monthlyIncomeGoal:0},transactions:[],budgets:[],goals:[],recurring:[]})}])}return <Screen><Header title="Podešavanja" subtitle="Profil, cloud nalog i podaci"/><SectionTitle title="Korisnički nalog"/><View style={s.cardBlock}><Text style={s.cardTitle}>{data.profile.name||'Korisnik'}</Text><Text style={[s.muted,{marginTop:6}]}>{email}</Text><Text style={[s.smallMuted,{marginTop:8}]}>Cloud status: {syncState}</Text></View><SectionTitle title="Profil"/><Label text="Ime"/><TextInput style={s.input} value={name} onChangeText={setName}/><Label text="Mesečni cilj prihoda (RSD)"/><TextInput style={s.input} value={goal} onChangeText={setGoal} keyboardType="numeric"/><Primary text="Sačuvaj profil" onPress={save}/><SectionTitle title="Podaci"/><View style={s.cardBlock}><SettingRow title="Backup i izvoz" subtitle="JSON backup, CSV izvoz i uvoz" onPress={onBackup}/><SettingRow title="Obriši sve finansijske podatke" subtitle="Vraća prihode, troškove, budžete i ciljeve na nulu" onPress={clearAll} danger/></View><SectionTitle title="Nalog"/><View style={s.cardBlock}><SettingRow title="Odjavi se" subtitle="Podaci ostaju sačuvani na tvom nalogu" onPress={onLogout} danger/></View><SectionTitle title="O aplikaciji"/><View style={s.cardBlock}><Text style={s.cardTitle}>MoneyMate 2.0.0</Text><Text style={[s.muted,{marginTop:8,lineHeight:20}]}>Novi korisnički nalog počinje sa praznim finansijama. Svaki korisnik vidi isključivo svoje podatke.</Text></View></Screen>}
 function SettingRow({title,subtitle,onPress,danger}){return <Pressable style={[s.settingRow,s.divider]} onPress={onPress}><View style={s.flex}><Text style={[s.smallBold,danger&&{color:COLORS.red}]}>{title}</Text><Text style={s.smallMuted}>{subtitle}</Text></View><Text style={s.chevron}>›</Text></Pressable>}
 
 function TabBar({tab,setTab}){const tabs=[['Početna','⌂'],['Transakcije','↕'],['Budžeti','▣'],['Ciljevi','◆'],['Izveštaji','▥'],['Podešavanja','⚙']];return <View style={s.tabBar}>{tabs.map(([name,icon])=><Pressable key={name} style={s.tab} onPress={()=>setTab(name)}><Text style={[s.tabIcon,tab===name&&s.active]}>{icon}</Text><Text numberOfLines={1} style={[s.tabLabel,tab===name&&s.active]}>{name==='Transakcije'?'Unosi':name==='Podešavanja'?'Opcije':name}</Text></Pressable>)}</View>}
@@ -1875,6 +1934,21 @@ const s=StyleSheet.create({
  categoryProgress:{height:6,backgroundColor:'#EEF2F7',borderRadius:99,overflow:'hidden',marginTop:7},
  categoryProgressFill:{height:'100%',borderRadius:99},
  categoryPercent:{width:33,textAlign:'right',fontSize:11,fontWeight:'900',color:COLORS.ink},
+ predictionHero:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:'#CFE0F5',borderRadius:24,padding:17,marginBottom:18,shadowColor:'#000',shadowOpacity:.06,shadowRadius:14,shadowOffset:{width:0,height:5},elevation:3},
+ predictionEyebrowRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8,marginBottom:8},
+ predictionEyebrow:{fontSize:9,fontWeight:'900',letterSpacing:1.1,color:COLORS.primary},
+ predictionStatus:{borderRadius:999,paddingHorizontal:9,paddingVertical:5},
+ predictionStatusGood:{backgroundColor:'#EAF8F0'},predictionStatusRisk:{backgroundColor:'#FFF0F0'},predictionStatusText:{fontSize:8,fontWeight:'900'},
+ predictionTitle:{fontSize:21,fontWeight:'900',color:COLORS.ink,lineHeight:27},predictionSubtitle:{fontSize:10,color:COLORS.muted,lineHeight:16,marginTop:5,marginBottom:14},
+ predictionMainGrid:{flexDirection:'row',alignItems:'stretch',backgroundColor:'#F7FAFE',borderRadius:16,padding:13,marginBottom:13},
+ predictionMainStat:{flex:1},predictionMainDivider:{width:1,backgroundColor:COLORS.line,marginHorizontal:12},
+ predictionMainLabel:{fontSize:8,fontWeight:'900',color:COLORS.muted,marginBottom:5},predictionMainValue:{fontSize:15,fontWeight:'900',color:COLORS.ink},predictionMainHint:{fontSize:8,color:COLORS.muted,marginTop:4},
+ predictionTrackBox:{marginBottom:14},predictionTrackHeader:{flexDirection:'row',justifyContent:'space-between',marginBottom:7},predictionTrackLabel:{fontSize:9,fontWeight:'900',color:COLORS.ink},predictionTrackPercent:{fontSize:9,fontWeight:'900',color:COLORS.primary},
+ predictionTrack:{height:9,borderRadius:999,backgroundColor:'#E8EEF6',overflow:'hidden'},predictionTrackFill:{height:'100%',borderRadius:999,backgroundColor:COLORS.primary},predictionTrackFooter:{flexDirection:'row',justifyContent:'space-between',marginTop:5},predictionTrackFootText:{fontSize:8,color:COLORS.muted},
+ predictionCards:{flexDirection:'row',gap:8,marginBottom:13},predictionMiniCard:{flex:1,backgroundColor:'#FAFBFD',borderWidth:1,borderColor:COLORS.line,borderRadius:14,padding:10,minHeight:91},
+ predictionMiniIcon:{fontSize:17,marginBottom:7},predictionMiniLabel:{fontSize:8,fontWeight:'800',color:COLORS.muted,lineHeight:11,minHeight:22},predictionMiniValue:{fontSize:11,fontWeight:'900',color:COLORS.ink,marginTop:4},
+ predictionInsight:{flexDirection:'row',gap:10,borderRadius:15,padding:12,alignItems:'flex-start'},predictionInsightGood:{backgroundColor:'#EDF9F2',borderWidth:1,borderColor:'#CDEEDB'},predictionInsightRisk:{backgroundColor:'#FFF2F2',borderWidth:1,borderColor:'#F4CCCC'},
+ predictionInsightIcon:{fontSize:16,fontWeight:'900'},predictionInsightTitle:{fontSize:10,fontWeight:'900',color:COLORS.ink,marginBottom:3},predictionInsightText:{fontSize:9,color:COLORS.muted,lineHeight:14},predictionDisclaimer:{fontSize:8,color:COLORS.muted,lineHeight:12,marginTop:10,textAlign:'center'},
  monthCompareCard:{backgroundColor:'#FFFFFF',borderWidth:1,borderColor:COLORS.line,borderRadius:20,padding:16,marginBottom:14},
  monthCompareHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'flex-start',gap:12,marginBottom:15},
  monthCompareBadge:{backgroundColor:'#EEF4FF',borderRadius:999,paddingHorizontal:10,paddingVertical:6},

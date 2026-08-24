@@ -1,20 +1,15 @@
-MONEYMATE 1.9.0 — MESEČNO POREĐENJE
+MoneyMate 2.0.0
 
-POKRETANJE:
+Novo: istaknuta finansijska prognoza u Izveštajima.
+Prikazuje projekciju troškova, dnevni prosek, preostale dane, očekivani saldo, stopu štednje i upozorenje na rizik.
+
+Pokretanje:
 npm install
 npx expo install --fix
 npx expo start --lan --clear
 
-TEST:
-1. Dodaj transakcije u prethodni mesec.
-2. Dodaj transakcije u tekući mesec.
-3. Otvori Izveštaji.
-4. Proveri sekciju Mesečno poređenje.
-
-PUSH:
+Git:
 git status
 git add .
-git commit -m "Add monthly financial comparison"
+git commit -m "Add end of month spending prediction"
 git push origin master
-
-.env, node_modules i .expo se ne pushuju.
