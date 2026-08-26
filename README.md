@@ -349,3 +349,39 @@ Originalni ćirilični tekst nije izmenjen u prikazu računa.
 
 ## 2.3.2 Expanded Smart Categorization
 QR klasifikator je proširen na veliki broj postojećih MoneyMate kategorija: hrana, vozilo, zdravlje, nega, tehnika, stanovanje, odeća, zabava, ljubimci, obrazovanje, putovanja, računi i finansijske obaveze. Podržani su ćirilica i latinica.
+
+
+## 2.4.0 Modular architecture
+Ekrani, komponente i persistence hook su izdvojeni iz AppRoot-a.
+
+
+## 2.4.1 Fix
+Ispravljeni su nedostajući `COLORS` importi u `src/components/common.js` i `src/constants/styles.js` nakon modularnog refaktora.
+
+
+## 2.4.2 Fix — modular imports
+
+Ispravljeni su nedostajući importi nastali posle modularnog refaktora:
+- `monthKey` u `BudgetsScreen.js`
+- `monthKey` u `utils/statistics.js`
+- `dateLabel` u `GoalsScreen.js`
+- `parseAmount` u `SettingsScreen.js`
+
+Prethodni `COLORS` fix iz 2.4.1 je zadržan.
+
+
+## 2.4.3 CLEAN — full modular audit
+
+Urađena je sistematska provera svih izdvojenih modula. Provera obuhvata JSX komponente, React hook-ove, React Native komponente i ključne helper/finance/recurring/statistics funkcije.
+
+Posebno su provereni `SectionTitle`, `Label`, `Primary`, `Chip`, `Screen`, `Header`, `monthKey`, `dateLabel`, `parseAmount` i `COLORS`.
+
+
+## 2.4.4 — deduplicated imports
+
+Svi JavaScript moduli su prošli proveru duplih ES import-a.
+Importi iz istog modula su spojeni, a ponovljeni named import simboli uklonjeni.
+
+Primer:
+`import React, { useEffect, useMemo, useState } from 'react';`
+sada postoji samo jednom po fajlu.

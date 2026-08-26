@@ -1,9 +1,15 @@
-MONEYMATE 2.3.2
+MONEYMATE 2.4.4 — DEDUPED IMPORTS
+
+Pokretanje:
+npx expo start --lan --clear
+
+Ako nema node_modules:
 npm install
 npx expo install --fix
 npx expo start --lan --clear
 
+Git:
 git status
 git add .
-git commit -m "Expand smart QR expense categorization"
+git commit -m "Deduplicate imports after modular refactor"
 git push origin master
