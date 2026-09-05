@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, ScrollView, Share, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, SafeAreaView, StyleSheet, ScrollView, Share, Text, TextInput, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { EXPENSE_GROUPS, INCOME_GROUPS, EXPENSE_CATEGORIES, INCOME_CATEGORIES, CATEGORY_ICONS, CURRENCIES, DEFAULT_RATES } from '../constants/categories';
 import { COLORS } from '../constants/theme';

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { CATEGORY_ICONS } from '../constants/categories';
 import { COLORS } from '../constants/theme';
 import { s } from '../constants/styles';
@@ -8,6 +8,28 @@ import { isoToday, monthKey, money, parseAmount } from '../utils/helpers';
 import { addRecurringPeriod } from '../utils/recurring';
 import { computeStats } from '../utils/statistics';
 import { SectionTitle, Empty, Header, Screen } from '../components/common';
+
+
+export function compactMoney(value){
+  const n=Number(value||0);
+  const abs=Math.abs(n);
+  const sign=n<0?'-':'';
+  if(abs>=1000000)return `${sign}${(abs/1000000).toFixed(abs>=10000000?0:1)}M`;
+  if(abs>=1000)return `${sign}${(abs/1000).toFixed(abs>=100000?0:1)}k`;
+  return `${Math.round(n)}`;
+}
+
+export function PeriodSelector({value,onChange}){
+  return <View style={s.periodSelector}>
+    {[3,6,12].map(period=><Pressable
+      key={period}
+      onPress={()=>onChange(period)}
+      style={[s.periodOption,value===period&&s.periodOptionActive]}
+    >
+      <Text style={[s.periodOptionText,value===period&&s.periodOptionTextActive]}>{period}M</Text>
+    </Pressable>)}
+  </View>;
+}
 
 export function ReportMetric({label,value,tone='blue',caption}){
   const toneStyle=tone==='green'?s.reportMetricGreen:tone==='red'?s.reportMetricRed:tone==='amber'?s.reportMetricAmber:s.reportMetricBlue;
@@ -20,26 +42,54 @@ export function ReportMetric({label,value,tone='blue',caption}){
 
 export function MonthlyColumnChart({series}){
   const max=Math.max(1,...series.flatMap(item=>[item.income,item.expense]));
+  const totalIncome=series.reduce((sum,item)=>sum+item.income,0);
+  const totalExpense=series.reduce((sum,item)=>sum+item.expense,0);
+  const net=totalIncome-totalExpense;
   return <View style={s.chartCard}>
     <View style={s.chartHead}>
-      <View><Text style={s.chartTitle}>Prihodi i troškovi</Text><Text style={s.chartSubtitle}>Poslednjih 6 meseci</Text></View>
-      <View style={s.chartLegend}><View style={[s.legendDot,{backgroundColor:COLORS.green}]}/><Text style={s.chartLegendText}>Prihodi</Text><View style={[s.legendDot,{backgroundColor:COLORS.red}]}/><Text style={s.chartLegendText}>Troškovi</Text></View>
+      <View style={s.flex}>
+        <Text style={s.chartTitle}>Prihodi vs. troškovi</Text>
+        <Text style={s.chartSubtitle}>Direktno poređenje po mesecima</Text>
+      </View>
+      <View style={s.chartLegend}>
+        <View style={[s.legendDot,{backgroundColor:COLORS.green}]}/><Text style={s.chartLegendText}>Prihodi</Text>
+        <View style={[s.legendDot,{backgroundColor:COLORS.red}]}/><Text style={s.chartLegendText}>Troškovi</Text>
+      </View>
     </View>
+
+    <View style={s.chartKpiStrip}>
+      <View style={s.chartKpiItem}><Text style={s.chartKpiLabel}>Prihodi</Text><Text style={[s.chartKpiValue,{color:COLORS.green}]}>{money(totalIncome)}</Text></View>
+      <View style={s.chartKpiDivider}/>
+      <View style={s.chartKpiItem}><Text style={s.chartKpiLabel}>Troškovi</Text><Text style={[s.chartKpiValue,{color:COLORS.red}]}>{money(totalExpense)}</Text></View>
+      <View style={s.chartKpiDivider}/>
+      <View style={s.chartKpiItem}><Text style={s.chartKpiLabel}>Neto</Text><Text style={[s.chartKpiValue,{color:net>=0?COLORS.primary:COLORS.red}]}>{net>=0?'+':''}{money(net)}</Text></View>
+    </View>
+
     <View style={s.columnChart}>
       {series.map(item=>{
-        const incomeHeight=Math.max(item.income?8:2,(item.income/max)*126);
-        const expenseHeight=Math.max(item.expense?8:2,(item.expense/max)*126);
+        const incomeHeight=Math.max(item.income?8:2,(item.income/max)*116);
+        const expenseHeight=Math.max(item.expense?8:2,(item.expense/max)*116);
         return <View key={item.month} style={s.columnGroup}>
+          <View style={s.columnValueLabels}>
+            <Text style={[s.columnTinyValue,{color:COLORS.green}]}>{compactMoney(item.income)}</Text>
+            <Text style={[s.columnTinyValue,{color:COLORS.red}]}>{compactMoney(item.expense)}</Text>
+          </View>
           <View style={s.columnValueArea}>
             <View style={[s.columnBar,s.incomeColumn,{height:incomeHeight}]}/>
             <View style={[s.columnBar,s.expenseColumn,{height:expenseHeight}]}/>
           </View>
           <Text style={s.columnMonth}>{monthName(item.month).split(' ')[0]}</Text>
+          <Text style={[s.columnNet,{color:item.monthBalance>=0?COLORS.green:COLORS.red}]}>
+            {item.monthBalance>=0?'+':''}{compactMoney(item.monthBalance)}
+          </Text>
         </View>;
       })}
     </View>
     <View style={s.chartAxis}/>
-    <View style={s.chartFooter}><Text style={s.smallMuted}>Najviša vrednost: {money(max)}</Text><Text style={s.smallMuted}>Sve vrednosti su u RSD</Text></View>
+    <View style={s.chartFooter}>
+      <Text style={s.smallMuted}>Skala: max {money(max)}</Text>
+      <Text style={s.smallMuted}>Iznosi u RSD</Text>
+    </View>
   </View>;
 }
 
@@ -211,6 +261,209 @@ export function CashFlowTrendChart({series}){
         {finalValue>=0?'+':''}{money(finalValue)}
       </Text>
     </View>
+  </View>;
+}
+
+
+export function AnalyticsHero({transactions,currentMonth}){
+  const current=computeStats(transactions,currentMonth);
+  const previous=computeStats(transactions,previousMonthKey(currentMonth));
+  const incomeChange=percentChange(current.income,previous.income);
+  const expenseChange=percentChange(current.expense,previous.expense);
+  const balanceChange=percentChange(current.balance,previous.balance);
+  const rate=savingsRateForStats(current);
+  const expenseCount=transactions.filter(x=>x.type==='expense'&&monthKey(x.date)===currentMonth).length;
+  const avgExpense=expenseCount?current.expense/expenseCount:0;
+
+  const ChangeBadge=({change,invert=false})=>{
+    const favorable=change.direction==='same'?null:invert?change.direction==='down':change.direction==='up';
+    const color=favorable===null?COLORS.muted:favorable?COLORS.green:COLORS.red;
+    return <View style={s.analyticsChangeBadge}>
+      <Text style={[s.analyticsChangeArrow,{color}]}>{change.direction==='up'?'↑':change.direction==='down'?'↓':'→'}</Text>
+      <Text style={[s.analyticsChangeText,{color}]}>{change.label}</Text>
+    </View>;
+  };
+
+  return <View style={s.analyticsHero}>
+    <View style={s.analyticsHeroTop}>
+      <View style={s.flex}>
+        <Text style={s.analyticsEyebrow}>FINANSIJSKI PULS</Text>
+        <Text style={s.analyticsHeroTitle}>{monthName(currentMonth)}</Text>
+        <Text style={s.analyticsHeroSub}>Detaljan pregled rezultata tekućeg meseca</Text>
+      </View>
+      <View style={[s.analyticsScoreBadge,{backgroundColor:current.balance>=0?'#E8F8EF':'#FFF0F0'}]}>
+        <Text style={[s.analyticsScoreValue,{color:current.balance>=0?COLORS.green:COLORS.red}]}>
+          {current.balance>=0?'PLUS':'MINUS'}
+        </Text>
+      </View>
+    </View>
+
+    <View style={s.analyticsHeroGrid}>
+      <View style={s.analyticsHeroMetric}>
+        <Text style={s.analyticsHeroMetricLabel}>PRIHODI</Text>
+        <Text style={s.analyticsHeroMetricValue}>{money(current.income)}</Text>
+        <ChangeBadge change={incomeChange}/>
+      </View>
+      <View style={s.analyticsHeroMetric}>
+        <Text style={s.analyticsHeroMetricLabel}>TROŠKOVI</Text>
+        <Text style={s.analyticsHeroMetricValue}>{money(current.expense)}</Text>
+        <ChangeBadge change={expenseChange} invert/>
+      </View>
+      <View style={s.analyticsHeroMetric}>
+        <Text style={s.analyticsHeroMetricLabel}>NETO</Text>
+        <Text style={[s.analyticsHeroMetricValue,{color:current.balance>=0?COLORS.green:COLORS.red}]}>
+          {current.balance>=0?'+':''}{money(current.balance)}
+        </Text>
+        <ChangeBadge change={balanceChange}/>
+      </View>
+      <View style={s.analyticsHeroMetric}>
+        <Text style={s.analyticsHeroMetricLabel}>STOPA ŠTEDNJE</Text>
+        <Text style={s.analyticsHeroMetricValue}>{rate.toFixed(0)}%</Text>
+        <Text style={s.analyticsHeroMetricHint}>prosek troška {money(avgExpense)}</Text>
+      </View>
+    </View>
+  </View>;
+}
+
+export function SavingsRateChart({series}){
+  const values=series.map(item=>savingsRateForStats(item));
+  const avg=values.length?values.reduce((a,b)=>a+b,0)/values.length:0;
+  const best=Math.max(...values,0);
+  return <View style={s.chartCard}>
+    <View style={s.chartHead}>
+      <View>
+        <Text style={s.chartTitle}>Stopa štednje po mesecima</Text>
+        <Text style={s.chartSubtitle}>Koliki procenat prihoda ostaje nakon troškova</Text>
+      </View>
+      <View style={s.savingsAverageBadge}>
+        <Text style={s.savingsAverageLabel}>Prosek</Text>
+        <Text style={s.savingsAverageValue}>{avg.toFixed(0)}%</Text>
+      </View>
+    </View>
+    <View style={s.savingsRateRows}>
+      {series.map((item,index)=>{
+        const rate=values[index];
+        const width=Math.min(100,Math.max(0,rate));
+        const tone=rate>=20?COLORS.green:rate>=0?COLORS.amber:COLORS.red;
+        return <View key={item.month} style={s.savingsRateRow}>
+          <Text style={s.savingsRateMonth}>{monthName(item.month).split(' ')[0]}</Text>
+          <View style={s.savingsRateTrack}>
+            {rate>=0?<View style={[s.savingsRateFill,{width:`${Math.max(2,width)}%`,backgroundColor:tone}]}/>:null}
+          </View>
+          <Text style={[s.savingsRateValue,{color:tone}]}>{rate.toFixed(0)}%</Text>
+        </View>;
+      })}
+    </View>
+    <View style={s.savingsRateFooter}>
+      <Text style={s.smallMuted}>Najbolja stopa u periodu</Text>
+      <Text style={[s.bold,{color:best>=20?COLORS.green:COLORS.amber}]}>{best.toFixed(0)}%</Text>
+    </View>
+  </View>;
+}
+
+export function TopExpensesChart({transactions,currentMonth}){
+  const items=transactions
+    .filter(x=>x.type==='expense'&&monthKey(x.date)===currentMonth)
+    .map(x=>({...x,value:amountInRsd(x)}))
+    .sort((a,b)=>b.value-a.value)
+    .slice(0,7);
+  const max=Math.max(1,...items.map(x=>x.value));
+  const total=items.reduce((sum,x)=>sum+x.value,0);
+  if(!items.length)return <View style={s.chartCard}><Empty text="Nema troškova u tekućem mesecu."/></View>;
+  return <View style={s.chartCard}>
+    <View style={s.chartHead}>
+      <View>
+        <Text style={s.chartTitle}>Najveće pojedinačne potrošnje</Text>
+        <Text style={s.chartSubtitle}>Top {items.length} transakcija u {monthName(currentMonth)}</Text>
+      </View>
+      <Text style={s.categoryTotal}>{money(total)}</Text>
+    </View>
+    {items.map((item,index)=><View key={item.id||`${item.title}-${index}`} style={s.topExpenseRow}>
+      <View style={s.topExpenseRank}><Text style={s.topExpenseRankText}>{index+1}</Text></View>
+      <View style={s.flex}>
+        <View style={s.space}>
+          <Text style={s.topExpenseTitle} numberOfLines={1}>{CATEGORY_ICONS[item.category]||'•'} {item.title||item.category}</Text>
+          <Text style={s.topExpenseAmount}>{money(item.value)}</Text>
+        </View>
+        <View style={s.topExpenseMetaRow}>
+          <Text style={s.topExpenseMeta}>{item.category}</Text>
+          <Text style={s.topExpenseMeta}>{item.date||''}</Text>
+        </View>
+        <View style={s.topExpenseTrack}><View style={[s.topExpenseFill,{width:`${Math.max(4,item.value/max*100)}%`}]}/></View>
+      </View>
+    </View>)}
+  </View>;
+}
+
+export function RecurringShareChart({transactions,currentMonth}){
+  const expenses=transactions.filter(x=>x.type==='expense'&&monthKey(x.date)===currentMonth);
+  const recurring=expenses.filter(x=>x.recurringId);
+  const regular=expenses.filter(x=>!x.recurringId);
+  const recurringTotal=recurring.reduce((s,x)=>s+amountInRsd(x),0);
+  const regularTotal=regular.reduce((s,x)=>s+amountInRsd(x),0);
+  const total=recurringTotal+regularTotal;
+  const recurringShare=total?recurringTotal/total*100:0;
+  return <View style={s.chartCard}>
+    <View style={s.chartHead}>
+      <View>
+        <Text style={s.chartTitle}>Struktura mesečnih troškova</Text>
+        <Text style={s.chartSubtitle}>Ponavljajući naspram ostalih troškova</Text>
+      </View>
+      <Text style={s.categoryTotal}>{money(total)}</Text>
+    </View>
+    <View style={s.recurringDonutFake}>
+      <View style={s.recurringCenter}>
+        <Text style={s.recurringCenterValue}>{recurringShare.toFixed(0)}%</Text>
+        <Text style={s.recurringCenterLabel}>ponavljajuće</Text>
+      </View>
+    </View>
+    <View style={s.recurringLegendGrid}>
+      <View style={s.recurringLegendCard}>
+        <View style={[s.legendDot,{backgroundColor:COLORS.primary}]}/>
+        <Text style={s.recurringLegendLabel}>Ponavljajući</Text>
+        <Text style={s.recurringLegendValue}>{money(recurringTotal)}</Text>
+        <Text style={s.recurringLegendSub}>{recurring.length} transakcija</Text>
+      </View>
+      <View style={s.recurringLegendCard}>
+        <View style={[s.legendDot,{backgroundColor:'#AAB8C8'}]}/>
+        <Text style={s.recurringLegendLabel}>Ostali</Text>
+        <Text style={s.recurringLegendValue}>{money(regularTotal)}</Text>
+        <Text style={s.recurringLegendSub}>{regular.length} transakcija</Text>
+      </View>
+    </View>
+    <View style={s.recurringStacked}>
+      <View style={{flex:recurringTotal||0.0001,backgroundColor:COLORS.primary}}/>
+      <View style={{flex:regularTotal||0.0001,backgroundColor:'#AAB8C8'}}/>
+    </View>
+  </View>;
+}
+
+export function MonthlyDetailTable({series}){
+  if(!series.length)return null;
+  return <View style={s.chartCard}>
+    <View style={s.chartHead}>
+      <View>
+        <Text style={s.chartTitle}>Mesečna tabela rezultata</Text>
+        <Text style={s.chartSubtitle}>Prihodi, troškovi, neto rezultat i stopa štednje</Text>
+      </View>
+    </View>
+    <View style={s.detailTableHeader}>
+      <Text style={[s.detailTableHeaderText,{flex:1.1,textAlign:'left'}]}>Mesec</Text>
+      <Text style={s.detailTableHeaderText}>Prihodi</Text>
+      <Text style={s.detailTableHeaderText}>Troškovi</Text>
+      <Text style={s.detailTableHeaderText}>Neto</Text>
+      <Text style={s.detailTableHeaderText}>Štednja</Text>
+    </View>
+    {series.map(item=>{
+      const rate=savingsRateForStats(item);
+      return <View key={item.month} style={s.detailTableRow}>
+        <Text style={[s.detailTableMonth,{flex:1.1}]}>{monthName(item.month)}</Text>
+        <Text style={[s.detailTableValue,{color:COLORS.green}]}>{compactMoney(item.income)}</Text>
+        <Text style={[s.detailTableValue,{color:COLORS.red}]}>{compactMoney(item.expense)}</Text>
+        <Text style={[s.detailTableValue,{color:item.monthBalance>=0?COLORS.green:COLORS.red}]}>{item.monthBalance>=0?'+':''}{compactMoney(item.monthBalance)}</Text>
+        <Text style={[s.detailTableValue,{color:rate>=20?COLORS.green:rate>=0?COLORS.amber:COLORS.red}]}>{rate.toFixed(0)}%</Text>
+      </View>;
+    })}
   </View>;
 }
 
@@ -543,54 +796,76 @@ export function MonthlyComparisonCard({transactions,currentMonth}){
 }
 
 export function Reports({transactions,recurring,goals}){
-  const months=lastMonths(6);
+  const [period,setPeriod]=useState(6);
+  const months=lastMonths(period);
   const months12=lastMonths(12);
   const currentMonth=monthKey(isoToday());
   const series=months.map(month=>({month,...computeStats(transactions,month)}));
   const series12=months12.map(month=>({month,...computeStats(transactions,month)}));
-  const expenses=transactions.filter(item=>item.type==='expense');
-  const incomes=transactions.filter(item=>item.type==='income');
+  const periodTransactions=transactions.filter(item=>months.includes(monthKey(item.date)));
+  const expenses=periodTransactions.filter(item=>item.type==='expense');
+  const incomes=periodTransactions.filter(item=>item.type==='income');
   const totalIncome=incomes.reduce((sum,item)=>sum+amountInRsd(item),0);
   const totalExpense=expenses.reduce((sum,item)=>sum+amountInRsd(item),0);
   const net=totalIncome-totalExpense;
   const savingsRate=totalIncome?((totalIncome-totalExpense)/totalIncome)*100:0;
   const averageExpense=series.reduce((sum,item)=>sum+item.expense,0)/Math.max(1,series.length);
+  const averageIncome=series.reduce((sum,item)=>sum+item.income,0)/Math.max(1,series.length);
   const categoryEntries=Object.entries(categoryTotals(expenses)).sort((a,b)=>b[1]-a[1]);
   const topCategory=categoryEntries[0];
   const bestMonth=[...series].sort((a,b)=>b.monthBalance-a.monthBalance)[0];
+  const worstMonth=[...series].sort((a,b)=>a.monthBalance-b.monthBalance)[0];
+  const largestExpense=[...expenses].sort((a,b)=>amountInRsd(b)-amountInRsd(a))[0];
+  const avgTransaction=expenses.length?totalExpense/expenses.length:0;
+
   return <Screen>
-    <Header title="Izveštaji" subtitle="Vizuelna analiza tvojih finansija"/>
-    <View style={s.reportMetricGrid}>
-      <ReportMetric label="Ukupni prihodi" value={money(totalIncome)} tone="green" caption={`${incomes.length} transakcija`}/>
-      <ReportMetric label="Ukupni troškovi" value={money(totalExpense)} tone="red" caption={`${expenses.length} transakcija`}/>
-      <ReportMetric label="Neto stanje" value={`${net>=0?'+':''}${money(net)}`} tone={net>=0?'blue':'red'} caption="Prihodi minus troškovi"/>
-      <ReportMetric label="Stopa štednje" value={`${Math.round(savingsRate)}%`} tone="amber" caption="Udeo sačuvanog prihoda"/>
+    <Header title="Izveštaji" subtitle="Detaljna vizuelna analiza tvojih finansija"/>
+
+    <View style={s.reportPeriodHeader}>
+      <View>
+        <Text style={s.reportPeriodTitle}>Period analize</Text>
+        <Text style={s.reportPeriodSubtitle}>Menja grafikone i zbirne pokazatelje</Text>
+      </View>
+      <PeriodSelector value={period} onChange={setPeriod}/>
     </View>
 
-    <SectionTitle title="Finansijska prognoza"/>
-    <MonthPredictionHero transactions={transactions}/>
+    <AnalyticsHero transactions={transactions} currentMonth={currentMonth}/>
 
-    <SectionTitle title="Pametna kupovina"/>
-    <SmartPurchasePredictor transactions={transactions} recurring={recurring} goals={goals}/>
+    <View style={s.reportMetricGrid}>
+      <ReportMetric label={`Prihodi · ${period}M`} value={money(totalIncome)} tone="green" caption={`Prosek ${money(averageIncome)} mesečno`}/>
+      <ReportMetric label={`Troškovi · ${period}M`} value={money(totalExpense)} tone="red" caption={`Prosek ${money(averageExpense)} mesečno`}/>
+      <ReportMetric label="Neto rezultat" value={`${net>=0?'+':''}${money(net)}`} tone={net>=0?'blue':'red'} caption={`${period} meseci zajedno`}/>
+      <ReportMetric label="Stopa štednje" value={`${Math.round(savingsRate)}%`} tone="amber" caption={`${expenses.length+incomes.length} transakcija u periodu`}/>
+    </View>
 
-    <SectionTitle title="Mesečno poređenje"/>
-    <MonthlyComparisonCard transactions={transactions} currentMonth={currentMonth}/>
-
-    <SectionTitle title="Osnovni grafikoni"/>
+    <SectionTitle title="Glavni finansijski grafikoni"/>
     <MonthlyColumnChart series={series}/>
+    <SavingsRateChart series={series}/>
     <BalanceChart series={series}/>
-    <CategoryDistributionChart expenses={expenses}/>
 
-    <SectionTitle title="Napredna analiza"/>
-    <CashFlowTrendChart series={series12}/>
+    <SectionTitle title="Detaljna potrošnja"/>
+    <CategoryDistributionChart expenses={expenses}/>
+    <TopExpensesChart transactions={transactions} currentMonth={currentMonth}/>
+    <RecurringShareChart transactions={transactions} currentMonth={currentMonth}/>
     <WeekdayExpenseChart expenses={expenses}/>
+
+    <SectionTitle title="Dugoročni trend"/>
+    <CashFlowTrendChart series={series12}/>
     <IncomeDistributionChart incomes={incomes}/>
+    <MonthlyDetailTable series={series}/>
+
+    <SectionTitle title="Predikcija i odluke"/>
+    <MonthPredictionHero transactions={transactions}/>
+    <SmartPurchasePredictor transactions={transactions} recurring={recurring} goals={goals}/>
+    <MonthlyComparisonCard transactions={transactions} currentMonth={currentMonth}/>
 
     <SectionTitle title="Finansijski uvidi"/>
     <View style={s.insightGrid}>
-      <View style={s.insightCard}><Text style={s.insightIcon}>◎</Text><Text style={s.insightLabel}>Prosečan mesečni trošak</Text><Text style={s.insightValue}>{money(averageExpense)}</Text></View>
+      <View style={s.insightCard}><Text style={s.insightIcon}>◎</Text><Text style={s.insightLabel}>Prosečan mesečni trošak</Text><Text style={s.insightValue}>{money(averageExpense)}</Text><Text style={s.insightSub}>Po transakciji {money(avgTransaction)}</Text></View>
       <View style={s.insightCard}><Text style={s.insightIcon}>★</Text><Text style={s.insightLabel}>Najbolji mesec</Text><Text style={s.insightValue}>{bestMonth?monthName(bestMonth.month):'—'}</Text><Text style={[s.insightSub,{color:bestMonth?.monthBalance>=0?COLORS.green:COLORS.red}]}>{bestMonth?`${bestMonth.monthBalance>=0?'+':''}${money(bestMonth.monthBalance)}`:'Nema podataka'}</Text></View>
-      <View style={[s.insightCard,{width:'100%'}]}><Text style={s.insightIcon}>▦</Text><Text style={s.insightLabel}>Najveća kategorija troškova</Text><Text style={s.insightValue}>{topCategory?`${CATEGORY_ICONS[topCategory[0]]||'•'} ${topCategory[0]}`:'Nema podataka'}</Text><Text style={s.insightSub}>{topCategory?money(topCategory[1]):'Dodaj troškove za analizu'}</Text></View>
+      <View style={s.insightCard}><Text style={s.insightIcon}>↓</Text><Text style={s.insightLabel}>Najslabiji mesec</Text><Text style={s.insightValue}>{worstMonth?monthName(worstMonth.month):'—'}</Text><Text style={[s.insightSub,{color:worstMonth?.monthBalance>=0?COLORS.green:COLORS.red}]}>{worstMonth?`${worstMonth.monthBalance>=0?'+':''}${money(worstMonth.monthBalance)}`:'Nema podataka'}</Text></View>
+      <View style={s.insightCard}><Text style={s.insightIcon}>◆</Text><Text style={s.insightLabel}>Najveća pojedinačna potrošnja</Text><Text style={s.insightValue}>{largestExpense?money(amountInRsd(largestExpense)):'—'}</Text><Text style={s.insightSub}>{largestExpense?largestExpense.title||largestExpense.category:'Nema podataka'}</Text></View>
+      <View style={[s.insightCard,{width:'100%'}]}><Text style={s.insightIcon}>▦</Text><Text style={s.insightLabel}>Najveća kategorija troškova u izabranom periodu</Text><Text style={s.insightValue}>{topCategory?`${CATEGORY_ICONS[topCategory[0]]||'•'} ${topCategory[0]}`:'Nema podataka'}</Text><Text style={s.insightSub}>{topCategory?`${money(topCategory[1])} · ${totalExpense?Math.round(topCategory[1]/totalExpense*100):0}% svih troškova`:'Dodaj troškove za analizu'}</Text></View>
     </View>
   </Screen>;
 }

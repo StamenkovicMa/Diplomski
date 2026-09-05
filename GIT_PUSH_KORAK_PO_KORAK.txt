@@ -1,15 +1,20 @@
-MONEYMATE 2.4.4 — DEDUPED IMPORTS
+MONEYMATE 2.5.0 — ADVANCED ANALYTICS
 
 Pokretanje:
-npx expo start --lan --clear
-
-Ako nema node_modules:
 npm install
 npx expo install --fix
 npx expo start --lan --clear
 
+Test:
+1. Otvori Izveštaji.
+2. Promeni 3M / 6M / 12M.
+3. Proveri Financial Pulse.
+4. Proveri prihode/troškove i stopu štednje.
+5. Proveri Top troškove i strukturu recurring troškova.
+6. Proveri mesečnu tabelu i postojeće predikcije.
+
 Git:
 git status
 git add .
-git commit -m "Deduplicate imports after modular refactor"
+git commit -m "Upgrade financial analytics and charts"
 git push origin master

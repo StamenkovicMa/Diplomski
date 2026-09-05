@@ -385,3 +385,31 @@ Importi iz istog modula su spojeni, a ponovljeni named import simboli uklonjeni.
 Primer:
 `import React, { useEffect, useMemo, useState } from 'react';`
 sada postoji samo jednom po fajlu.
+
+
+## 2.5.0 — Advanced Analytics
+
+Ekran Izveštaji je potpuno unapređen:
+- izbor perioda 3 / 6 / 12 meseci;
+- Financial Pulse kartica za tekući mesec;
+- detaljni prihodi/troškovi sa mesečnim neto iznosom;
+- stopa štednje po mesecima;
+- Top pojedinačni troškovi;
+- odnos ponavljajućih i ostalih troškova;
+- mesečna tabela rezultata;
+- detaljniji finansijski KPI i uvidi;
+- zadržane prognoza, Smart Purchase Predictor i mesečno poređenje.
+
+
+## 2.5.1 — Analytics style syntax fix
+
+Ispravljena je sintaksna greška u `src/constants/styles.js`:
+nedostajao je zarez između `emptyIcon` i novog `reportPeriodHeader` stila.
+
+
+## 2.5.2 — QR StyleSheet fix
+
+Ispravljen je runtime error u `QrScannerScreen`:
+`StyleSheet` se koristi u `src/components/modals.js`, ali nije bio importovan iz `react-native`.
+
+Dodat je `StyleSheet` u postojeći React Native import.
