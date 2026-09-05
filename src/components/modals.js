@@ -435,7 +435,7 @@ export function TransactionModal({visible,initial,autoScan,onClose,onSave}){
         </View>
       </View>
       <Text style={s.qrCategoryReason}>{qrCategorySuggestion.reason}</Text>
-      <Text style={s.qrCategoryNormalization}>SR normalizacija: ćirilica i latinica se analiziraju u istoj internoj formi. Klasifikator proverava prodavca i veliki skup artikala/usluga.</Text>
+      <Text style={s.qrCategoryNormalization}>SR normalizacija: ćirilica i latinica se analiziraju u istoj internoj formi. Klasifikator prepoznaje apoteke, klinike, drogerije, gorivo, servise, restorane, tehniku, kućne troškove i veliki broj drugih tipova računa.</Text>
       <Text style={s.qrCategoryHint}>Ako predlog nije tačan, izaberi drugu kategoriju ispod.</Text>
     </View>:null}
 

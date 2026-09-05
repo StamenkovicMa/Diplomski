@@ -413,3 +413,24 @@ Ispravljen je runtime error u `QrScannerScreen`:
 `StyleSheet` se koristi u `src/components/modals.js`, ali nije bio importovan iz `react-native`.
 
 Dodat je `StyleSheet` u postojeći React Native import.
+
+
+## 2.6.0 — Smart QR Recognition
+
+Automatska kategorizacija fiskalnih računa je dodatno proširena.
+
+Posebno su unapređeni:
+- apoteke i lekovi;
+- suplementi;
+- privatne klinike, lekarski pregledi i stomatolog;
+- drogerije i lična nega;
+- gorivo, servis, gume, parking i putarina;
+- prehrana, pekare, restorani i dostava;
+- tehnika i kućni aparati;
+- odeća i obuća;
+- ljubimci;
+- obrazovanje;
+- putovanja;
+- računi i finansijske obaveze.
+
+Klasifikacija i dalje podržava srpsku ćirilicu i latinicu.

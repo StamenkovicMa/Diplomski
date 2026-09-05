@@ -1,20 +1,18 @@
-MONEYMATE 2.5.0 — ADVANCED ANALYTICS
+MONEYMATE 2.6.0 — SMART QR RECOGNITION
 
 Pokretanje:
-npm install
-npx expo install --fix
 npx expo start --lan --clear
 
-Test:
-1. Otvori Izveštaji.
-2. Promeni 3M / 6M / 12M.
-3. Proveri Financial Pulse.
-4. Proveri prihode/troškove i stopu štednje.
-5. Proveri Top troškove i strukturu recurring troškova.
-6. Proveri mesečnu tabelu i postojeće predikcije.
+Test primeri:
+АПОТЕКА БЕНУ + БРУФЕН -> Lekovi
+DM + ШАМПОН -> Lična nega
+EUROMEDIK + ПРЕГЛЕД -> Privatna klinika / Lekarski pregled
+NIS + ЕВРО ДИЗЕЛ -> Gorivo
+AUTO SERVIS + МОТОРНО УЉЕ -> Servis automobila
+PET SHOP + ХРАНА ЗА ПСЕ -> Hrana za ljubimce
 
 Git:
 git status
 git add .
-git commit -m "Upgrade financial analytics and charts"
+git commit -m "Expand smart QR receipt recognition"
 git push origin master
