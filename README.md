@@ -434,3 +434,28 @@ Posebno su unapređeni:
 - računi i finansijske obaveze.
 
 Klasifikacija i dalje podržava srpsku ćirilicu i latinicu.
+
+
+## 2.6.1 — Pharmacy recognition fix
+
+Prepoznavanje apoteka više ne zavisi samo od poznatih lanaca.
+Dodat je generički pharmacy fallback koji koristi:
+- naziv prodajnog mesta (`apoteka`, `pharmacy`, `farmacija`, `farmaceut`, itd.);
+- širi spisak lanaca i lokalnih naziva;
+- veliki rečnik lekova i medicinskih proizvoda;
+- sadržaj stavki na računu kada naziv trgovca nije dovoljno jasan.
+
+Podržani su ćirilica i latinica kroz postojeću srpsku normalizaciju.
+
+
+## 2.7.0 — Financial Health Score
+
+U ekran `Izveštaji` dodat je Financial Health Score od 0 do 100.
+
+Rezultat se računa na osnovu:
+- stope štednje;
+- odnosa troškova i prihoda;
+- stabilnosti mesečnog cash flow-a;
+- udela ponavljajućih troškova.
+
+Korisnik dobija i kratke automatske uvide koji objašnjavaju šta pozitivno ili negativno utiče na rezultat.

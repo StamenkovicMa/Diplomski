@@ -1,18 +1,17 @@
-MONEYMATE 2.6.0 — SMART QR RECOGNITION
+MONEYMATE 2.7.0 — FINANCIAL HEALTH SCORE
 
 Pokretanje:
 npx expo start --lan --clear
 
-Test primeri:
-АПОТЕКА БЕНУ + БРУФЕН -> Lekovi
-DM + ШАМПОН -> Lična nega
-EUROMEDIK + ПРЕГЛЕД -> Privatna klinika / Lekarski pregled
-NIS + ЕВРО ДИЗЕЛ -> Gorivo
-AUTO SERVIS + МОТОРНО УЉЕ -> Servis automobila
-PET SHOP + ХРАНА ЗА ПСЕ -> Hrana za ljubimce
+Test:
+1. Otvori Izveštaji.
+2. Pronađi sekciju Finansijsko zdravlje.
+3. Proveri score 0-100.
+4. Proveri faktore: stopa štednje, troškovi/prihodi, stabilnost, recurring.
+5. Dodaj novu transakciju i proveri da se score menja.
 
 Git:
 git status
 git add .
-git commit -m "Expand smart QR receipt recognition"
+git commit -m "Add financial health score"
 git push origin master

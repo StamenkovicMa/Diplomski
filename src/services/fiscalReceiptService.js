@@ -86,8 +86,8 @@ const CATEGORY_RULES=[
   {category:'Dostava hrane',merchant:/wolt|glovo|donesi|dostav|mr d/,items:/dostava|delivery/},
 
   // ZDRAVLJE I APOTEKE
-  {category:'Lekovi',merchant:/apot|pharm|benu|dr max|galen pharm|lilly apotek|srbotrade|apoteka beograd|zegin|farmalogist/,items:/lek|brufen|paracetamol|ibuprofen|aspirin|sirup|tablet|kapsul|antibiotik|analgetik|pastile|flaster|mast\b|sprej|kapi|terapija|antihistaminik|probiotik/},
-  {category:'Suplementi',merchant:/apot|pharm|supplement|proteini|protein shop|pansport|amg sport/,items:/vitamin|probiotik|magnezijum|suplement|omega|protein|kreatin|kolagen|cink|multivitamin/},
+  {category:'Lekovi',merchant:/apot|apoteka|apotekarsk|pharm|pharmacy|farmacij|farmaceut|benu|dr max|galen pharm|lilly apotek|srbotrade|apoteka beograd|zegin|farmalogist|vega apoteka|maelia|jankovic apoteka|prima apoteka|iris farmacija|zdravlje apoteka|galenika apoteka|herba|medicor/,items:/lek|brufen|paracetamol|ibuprofen|aspirin|sirup|tablet|kapsul|antibiotik|analgetik|pastile|flaster|mast\b|sprej|kapi|terapija|antihistaminik|probiotik|pancef|hemomicin|amoksicilin|azitromicin|nurofen|diklofen|rapidol|efferalgan|febricet|coldrex|fervex|strepsils|tantum|otrivin|operil|prospan|sinecod|pressing|aerius|xyzal|claritine|controloc|nolpaza|enterofuryl|smecta|linex|espumisan|enalapril|amlodipin|bisoprolol|metformin|glukofaz|insulin|medicinski proizvod|medicinsko sredstvo|toplomer|zavoj|gaza|dezinfekc|alkohol 70|hidrogen|fizioloski|inhalator/},
+  {category:'Suplementi',merchant:/apot|apoteka|apotekarsk|pharm|pharmacy|farmacij|supplement|proteini|protein shop|pansport|amg sport|benu|dr max|lilly apotek/,items:/vitamin|probiotik|magnezijum|suplement|omega|protein|kreatin|kolagen|cink|multivitamin|vitamin c|vitamin d|vitamin b|selen|kalcijum|gvozdje|imunitet|echinacea|koenzim|q10|folna kiselina/},
   {category:'Lekarski pregled',merchant:/ordinacija|dom zdravlja|medigroup|euromedik|bel medic|doktor|medicina|ambulanta/,items:/pregled|ultrazvuk|snimanje|terapija|krvna slika|ekg|specijalist|kontrola/},
   {category:'Privatna klinika',merchant:/klinika|poliklinika|medigroup|euromedik|bel medic|acibadem|vizim|milmedic/,items:/klinika|specijalist|pregled|intervencija|terapija/},
   {category:'Stomatolog',merchant:/stomatolog|dental|dent|ordinacija dental|zubna ordinacija/,items:/zub|plomba|stomatolog|krunica|implant|vadjenje zuba|ciscenje kamenca/},
@@ -220,6 +220,21 @@ export function categorizeFiscalReceipt(receipt){
 
     if(score>0)scores.set(rule.category,{score,merchantMatched,itemMatches});
   });
+
+  // Generički fallback za nepoznate i lokalne apoteke:
+  // prepoznajemo tip prodajnog mesta i karakteristične farmaceutske stavke,
+  // pa klasifikacija ne zavisi samo od liste poznatih lanaca.
+  const pharmacyMerchantHint=/apot|apoteka|apotekarsk|pharm|pharmacy|farmacij|farmaceut|zdravstvena ustanova/.test(merchant);
+  const pharmacyItemHint=/lek|tablet|kapsul|sirup|antibiotik|analgetik|pastile|flaster|mast\b|sprej|kapi|brufen|paracetamol|ibuprofen|aspirin|pancef|hemomicin|nurofen|diklofen|fervex|strepsils|probiotik|medicinsk|toplomer|zavoj|gaza|dezinfekc|fizioloski|inhalator/.test(combinedItems);
+
+  if(pharmacyMerchantHint||pharmacyItemHint){
+    const prev=scores.get('Lekovi')||{score:0,merchantMatched:false,itemMatches:0};
+    scores.set('Lekovi',{
+      score:prev.score+(pharmacyMerchantHint?58:0)+(pharmacyItemHint?28:0),
+      merchantMatched:prev.merchantMatched||pharmacyMerchantHint,
+      itemMatches:prev.itemMatches+(pharmacyItemHint?1:0)
+    });
+  }
 
   const ranked=[...scores.entries()]
     .map(([category,data])=>({category,...data}))

@@ -265,6 +265,167 @@ export function CashFlowTrendChart({series}){
 }
 
 
+
+export function calculateFinancialHealth({transactions,recurring,currentMonth}){
+  const current=computeStats(transactions,currentMonth);
+  const prevMonths=lastMonths(4).slice(0,3);
+  const previousStats=prevMonths.map(month=>computeStats(transactions,month));
+
+  const savingsRate=current.income>0?((current.income-current.expense)/current.income)*100:0;
+  const expenseRatio=current.income>0?(current.expense/current.income)*100:100;
+
+  const balances=[...previousStats.map(x=>x.monthBalance),current.monthBalance];
+  const positiveMonths=balances.filter(x=>x>=0).length;
+  const cashFlowStability=(positiveMonths/Math.max(1,balances.length))*100;
+
+  const monthExpenses=transactions.filter(x=>x.type==='expense'&&monthKey(x.date)===currentMonth);
+  const recurringExpenseTotal=monthExpenses
+    .filter(x=>x.recurringId)
+    .reduce((sum,x)=>sum+amountInRsd(x),0);
+  const recurringShare=current.expense>0?(recurringExpenseTotal/current.expense)*100:0;
+
+  let score=0;
+
+  // 35 poena: stopa štednje.
+  if(savingsRate>=30)score+=35;
+  else if(savingsRate>=20)score+=30;
+  else if(savingsRate>=10)score+=24;
+  else if(savingsRate>=0)score+=16;
+  else score+=4;
+
+  // 30 poena: odnos troškova i prihoda.
+  if(expenseRatio<=60)score+=30;
+  else if(expenseRatio<=75)score+=25;
+  else if(expenseRatio<=90)score+=18;
+  else if(expenseRatio<=100)score+=10;
+  else score+=2;
+
+  // 20 poena: stabilnost cash flow-a.
+  score+=Math.round((cashFlowStability/100)*20);
+
+  // 15 poena: udeo recurring obaveza.
+  if(recurringShare<=25)score+=15;
+  else if(recurringShare<=40)score+=12;
+  else if(recurringShare<=55)score+=8;
+  else if(recurringShare<=70)score+=4;
+  else score+=1;
+
+  score=Math.max(0,Math.min(100,Math.round(score)));
+
+  let label='Kritično';
+  let tone='danger';
+  if(score>=85){label='Odlično';tone='excellent'}
+  else if(score>=70){label='Vrlo dobro';tone='good'}
+  else if(score>=55){label='Solidno';tone='medium'}
+  else if(score>=40){label='Potrebno poboljšanje';tone='warning'}
+
+  const insights=[];
+
+  if(current.income<=0){
+    insights.push({type:'warning',text:'Nema evidentiranih prihoda u tekućem mesecu.'});
+  }else{
+    if(savingsRate>=20)insights.push({type:'positive',text:`Dobra stopa štednje: ${savingsRate.toFixed(0)}% prihoda.`});
+    else if(savingsRate>=0)insights.push({type:'warning',text:`Stopa štednje je ${savingsRate.toFixed(0)}%; cilj od 20% bi poboljšao rezultat.`});
+    else insights.push({type:'negative',text:'Troškovi su trenutno veći od prihoda.'});
+  }
+
+  if(expenseRatio<=80)insights.push({type:'positive',text:`Troškovi čine ${expenseRatio.toFixed(0)}% prihoda.`});
+  else insights.push({type:'warning',text:`Troškovi koriste ${expenseRatio.toFixed(0)}% prihoda.`});
+
+  if(cashFlowStability>=75)insights.push({type:'positive',text:`Pozitivan cash flow u ${positiveMonths}/${balances.length} poslednja posmatrana meseca.`});
+  else insights.push({type:'warning',text:`Cash flow je pozitivan u ${positiveMonths}/${balances.length} posmatrana meseca.`});
+
+  if(recurringShare<=40)insights.push({type:'positive',text:`Ponavljajući troškovi čine ${recurringShare.toFixed(0)}% mesečne potrošnje.`});
+  else insights.push({type:'warning',text:`Ponavljajući troškovi čine ${recurringShare.toFixed(0)}% mesečne potrošnje.`});
+
+  return {
+    score,label,tone,
+    savingsRate,expenseRatio,cashFlowStability,recurringShare,
+    positiveMonths,totalMonths:balances.length,
+    insights:insights.slice(0,4)
+  };
+}
+
+export function FinancialHealthScore({transactions,recurring,currentMonth}){
+  const health=calculateFinancialHealth({transactions,recurring,currentMonth});
+  const toneColor=
+    health.tone==='excellent'?COLORS.green:
+    health.tone==='good'?COLORS.primary:
+    health.tone==='medium'?COLORS.amber:
+    health.tone==='warning'?'#D97706':COLORS.red;
+
+  return <View style={s.healthCard}>
+    <View style={s.healthHeader}>
+      <View style={s.flex}>
+        <Text style={s.healthEyebrow}>FINANCIAL HEALTH SCORE</Text>
+        <Text style={s.healthTitle}>Finansijsko zdravlje</Text>
+        <Text style={s.healthSubtitle}>Rezultat se automatski računa iz tvojih finansijskih navika</Text>
+      </View>
+      <View style={[s.healthScoreCircle,{borderColor:toneColor}]}>
+        <Text style={[s.healthScoreNumber,{color:toneColor}]}>{health.score}</Text>
+        <Text style={s.healthScoreMax}>/100</Text>
+      </View>
+    </View>
+
+    <View style={s.healthStatusRow}>
+      <View style={[s.healthStatusBadge,{backgroundColor:toneColor+'18'}]}>
+        <Text style={[s.healthStatusText,{color:toneColor}]}>{health.label}</Text>
+      </View>
+      <Text style={s.healthStatusHint}>{monthName(currentMonth)}</Text>
+    </View>
+
+    <View style={s.healthProgressTrack}>
+      <View style={[s.healthProgressFill,{width:`${health.score}%`,backgroundColor:toneColor}]}/>
+    </View>
+
+    <View style={s.healthFactorGrid}>
+      <View style={s.healthFactorCard}>
+        <Text style={s.healthFactorLabel}>STOPA ŠTEDNJE</Text>
+        <Text style={[s.healthFactorValue,{color:health.savingsRate>=20?COLORS.green:health.savingsRate>=0?COLORS.amber:COLORS.red}]}>
+          {health.savingsRate.toFixed(0)}%
+        </Text>
+        <Text style={s.healthFactorHint}>cilj ≥ 20%</Text>
+      </View>
+
+      <View style={s.healthFactorCard}>
+        <Text style={s.healthFactorLabel}>TROŠKOVI / PRIHODI</Text>
+        <Text style={[s.healthFactorValue,{color:health.expenseRatio<=80?COLORS.green:health.expenseRatio<=100?COLORS.amber:COLORS.red}]}>
+          {health.expenseRatio.toFixed(0)}%
+        </Text>
+        <Text style={s.healthFactorHint}>niže je bolje</Text>
+      </View>
+
+      <View style={s.healthFactorCard}>
+        <Text style={s.healthFactorLabel}>STABILNOST</Text>
+        <Text style={s.healthFactorValue}>{health.cashFlowStability.toFixed(0)}%</Text>
+        <Text style={s.healthFactorHint}>{health.positiveMonths}/{health.totalMonths} pozitivna meseca</Text>
+      </View>
+
+      <View style={s.healthFactorCard}>
+        <Text style={s.healthFactorLabel}>RECURRING TROŠKOVI</Text>
+        <Text style={[s.healthFactorValue,{color:health.recurringShare<=40?COLORS.green:COLORS.amber}]}>
+          {health.recurringShare.toFixed(0)}%
+        </Text>
+        <Text style={s.healthFactorHint}>udeo potrošnje</Text>
+      </View>
+    </View>
+
+    <View style={s.healthInsights}>
+      <Text style={s.healthInsightsTitle}>Šta utiče na rezultat</Text>
+      {health.insights.map((item,index)=>{
+        const icon=item.type==='positive'?'✓':item.type==='negative'?'!':'•';
+        const color=item.type==='positive'?COLORS.green:item.type==='negative'?COLORS.red:COLORS.amber;
+        return <View key={`${item.text}-${index}`} style={s.healthInsightRow}>
+          <View style={[s.healthInsightIcon,{backgroundColor:color+'18'}]}>
+            <Text style={[s.healthInsightIconText,{color}]}>{icon}</Text>
+          </View>
+          <Text style={s.healthInsightText}>{item.text}</Text>
+        </View>;
+      })}
+    </View>
+  </View>;
+}
+
 export function AnalyticsHero({transactions,currentMonth}){
   const current=computeStats(transactions,currentMonth);
   const previous=computeStats(transactions,previousMonthKey(currentMonth));
@@ -830,6 +991,9 @@ export function Reports({transactions,recurring,goals}){
     </View>
 
     <AnalyticsHero transactions={transactions} currentMonth={currentMonth}/>
+
+    <SectionTitle title="Finansijsko zdravlje"/>
+    <FinancialHealthScore transactions={transactions} recurring={recurring} currentMonth={currentMonth}/>
 
     <View style={s.reportMetricGrid}>
       <ReportMetric label={`Prihodi · ${period}M`} value={money(totalIncome)} tone="green" caption={`Prosek ${money(averageIncome)} mesečno`}/>
